@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FIFO ADC — 8 Posições | RP2350</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0a1a;
+    --bg2: #13102a;
+    --bg3: #1c1838;
+    --border: rgba(255,255,255,0.08);
+    --purple: #a78bfa;
+    --teal: #34d399;
+    --amber: #fbbf24;
+    --red: #f87171;
+    --blue: #60a5fa;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; }
+
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(167,139,250,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(167,139,250,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none; z-index: 0;
+  }
+
+  .container { max-width: 1000px; margin: 0 auto; padding: 40px 24px; position: relative; z-index: 1; }
+
+  header { text-align: center; margin-bottom: 40px; }
+  .chip-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--bg3); border: 1px solid var(--purple);
+    border-radius: 20px; padding: 4px 14px; margin-bottom: 20px;
+    font-family: var(--mono); font-size: 11px; color: var(--purple); letter-spacing: 0.1em;
+  }
+  .chip-badge::before { content:''; width:6px; height:6px; background:var(--purple); border-radius:50%; animation:pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  h1 { font-size: clamp(2rem,5vw,3rem); font-weight: 800; line-height: 1.1; margin-bottom: 12px; }
+  h1 span { color: var(--purple); }
+  .subtitle { color: var(--muted); font-size: 1rem; max-width: 520px; margin: 0 auto; font-weight: 400; }
+
+  /* Scenario tabs */
+  .scenarios {
+    display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px;
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 8px;
+  }
+  .sc-btn {
+    flex: 1; min-width: 120px; padding: 8px 16px; border-radius: 8px;
+    font-family: var(--sans); font-size: 13px; font-weight: 700;
+    border: 1px solid transparent; cursor: pointer; background: transparent;
+    color: var(--muted); transition: all 0.2s;
+  }
+  .sc-btn:hover { color: var(--text); background: var(--bg3); }
+  .sc-btn.active { background: var(--bg3); border-color: var(--purple); color: var(--purple); }
+
+  /* Main grid */
+  .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  @media (max-width: 700px) { .main-grid { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 16px; padding: 24px; position: relative; overflow: hidden;
+  }
+  .card::before {
+    content:''; position:absolute; top:0; left:0; right:0; height:2px;
+    background: linear-gradient(90deg, var(--purple), var(--blue));
+  }
+  .card-title {
+    font-size: 11px; font-family: var(--mono); letter-spacing: 0.15em;
+    color: var(--purple); text-transform: uppercase; margin-bottom: 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card-title::after { content:''; flex:1; height:1px; background:var(--border); }
+
+  /* FIFO visual */
+  .thresh-ctrl { display:flex; align-items:center; gap:10px; margin-bottom:14px; font-size:13px; color:var(--muted); }
+  .thresh-ctrl input { flex:1; }
+  input[type=range] {
+    -webkit-appearance:none; height:5px; background:var(--bg3);
+    border-radius:3px; outline:none; border:1px solid var(--border);
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance:none; width:18px; height:18px; background:var(--purple);
+    border-radius:50%; cursor:pointer; box-shadow:0 0 10px rgba(167,139,250,0.5);
+  }
+
+  .fifo-container { display:flex; flex-direction:column; gap:4px; }
+  .fifo-slot {
+    height:36px; border-radius:7px; border:1px solid var(--border);
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0 12px; font-family:var(--mono); font-size:12px;
+    transition:all 0.3s cubic-bezier(.4,0,.2,1);
+    background: var(--bg3);
+  }
+  .fifo-slot.filled { background:rgba(96,165,250,0.12); border-color:rgba(96,165,250,0.4); color:var(--blue); }
+  .fifo-slot.reading { background:rgba(52,211,153,0.15); border-color:rgba(52,211,153,0.5); color:var(--teal); animation:flash-green 0.4s; }
+  .fifo-slot.overflow { background:rgba(248,113,113,0.15); border-color:rgba(248,113,113,0.5); color:var(--red); animation:flash-red 0.4s; }
+  .fifo-slot.thresh-line { border-bottom:2px dashed rgba(251,191,36,0.5); }
+  @keyframes flash-green { 0%{background:rgba(52,211,153,0.4)} 100%{background:rgba(52,211,153,0.15)} }
+  @keyframes flash-red   { 0%{background:rgba(248,113,113,0.4)} 100%{background:rgba(248,113,113,0.15)} }
+
+  .slot-tags { display:flex; gap:6px; }
+  .tag { font-size:10px; padding:1px 6px; border-radius:4px; }
+  .tag.head { background:rgba(96,165,250,0.2); color:var(--blue); }
+  .tag.tail { background:rgba(52,211,153,0.2); color:var(--teal); }
+  .tag.thresh { background:rgba(251,191,36,0.2); color:var(--amber); }
+
+  /* Metrics */
+  .metrics-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-bottom:16px; }
+  .metric-box { background:var(--bg3); border-radius:10px; padding:12px; border:1px solid var(--border); }
+  .metric-box .val { font-size:1.6rem; font-weight:800; font-family:var(--mono); line-height:1; }
+  .metric-box .lbl { font-size:11px; color:var(--muted); margin-top:3px; }
+
+  /* Status bar */
+  .status-bar {
+    border-radius:10px; padding:12px 16px; margin-bottom:16px;
+    font-size:13px; line-height:1.6; border:1px solid var(--border);
+    background:var(--bg3); transition:all 0.3s;
+  }
+  .status-bar.ok    { border-color:rgba(52,211,153,0.3);  background:rgba(52,211,153,0.05);  color:var(--teal); }
+  .status-bar.warn  { border-color:rgba(251,191,36,0.3);  background:rgba(251,191,36,0.05);  color:var(--amber); }
+  .status-bar.error { border-color:rgba(248,113,113,0.3); background:rgba(248,113,113,0.05); color:var(--red); }
+  .status-bar.info  { border-color:rgba(167,139,250,0.3); background:rgba(167,139,250,0.05); color:var(--purple); }
+
+  /* Controls */
+  .ctrl-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-bottom:16px; }
+  .btn {
+    padding:10px 14px; border-radius:8px; font-family:var(--sans);
+    font-size:13px; font-weight:700; cursor:pointer; border:1px solid var(--border);
+    background:var(--bg3); color:var(--text); transition:all 0.2s;
+  }
+  .btn:hover { border-color:var(--purple); color:var(--purple); }
+  .btn:active { transform:scale(0.97); }
+  .btn:disabled { opacity:0.35; cursor:not-allowed; }
+  .btn.primary { background:rgba(167,139,250,0.15); border-color:var(--purple); color:var(--purple); }
+  .btn.success { background:rgba(52,211,153,0.1); border-color:rgba(52,211,153,0.5); color:var(--teal); }
+  .btn.danger  { background:rgba(248,113,113,0.1); border-color:rgba(248,113,113,0.5); color:var(--red); }
+
+  /* Log */
+  .log-wrap { height:180px; overflow-y:auto; background:var(--bg3); border-radius:8px; border:1px solid var(--border); padding:8px 10px; }
+  .log-entry { padding:3px 0; font-family:var(--mono); font-size:11px; border-bottom:1px solid rgba(255,255,255,0.04); display:flex; gap:8px; }
+  .log-entry:last-child { border:none; }
+  .log-time { color:var(--muted); flex-shrink:0; }
+  .log-msg.info    { color:var(--blue); }
+  .log-msg.success { color:var(--teal); }
+  .log-msg.warn    { color:var(--amber); }
+  .log-msg.error   { color:var(--red); }
+  .log-msg.purple  { color:var(--purple); }
+
+  /* Explanation cards */
+  .explain-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:16px; margin-bottom:20px; }
+  @media (max-width:700px) { .explain-grid { grid-template-columns:1fr; } }
+  .explain-card {
+    background:var(--bg2); border:1px solid var(--border); border-radius:12px;
+    padding:18px; transition:border-color 0.2s;
+  }
+  .explain-card:hover { border-color:rgba(167,139,250,0.3); }
+  .explain-icon { font-size:24px; margin-bottom:10px; }
+  .explain-title { font-size:13px; font-weight:700; margin-bottom:6px; color:var(--text); }
+  .explain-text { font-size:12px; color:var(--muted); line-height:1.65; }
+  .code-pill {
+    display:inline-block; background:var(--bg3); border:1px solid var(--border);
+    border-radius:4px; padding:1px 7px; font-family:var(--mono); font-size:11px;
+    color:var(--purple); margin:1px;
+  }
+
+  /* Timeline diagram */
+  .timeline { margin:20px 0; }
+  .tl-row { display:flex; align-items:center; gap:0; margin-bottom:4px; }
+  .tl-label { width:90px; font-size:11px; font-family:var(--mono); color:var(--muted); flex-shrink:0; }
+  .tl-blocks { display:flex; flex:1; gap:2px; }
+  .tl-block {
+    flex:1; height:24px; border-radius:3px; display:flex;
+    align-items:center; justify-content:center; font-size:9px;
+    font-family:var(--mono); font-weight:700;
+  }
+  .tl-adc { background:rgba(96,165,250,0.2); color:var(--blue); }
+  .tl-fifo { background:rgba(167,139,250,0.2); color:var(--purple); }
+  .tl-cpu  { background:rgba(52,211,153,0.2); color:var(--teal); }
+  .tl-gap  { background:transparent; }
+  .tl-over { background:rgba(248,113,113,0.3); color:var(--red); }
+
+  footer { text-align:center; margin-top:40px; padding-top:20px; border-top:1px solid var(--border); }
+  footer p { font-size:12px; color:var(--muted); font-family:var(--mono); }
+
+  /* Auto mode */
+  #auto-btn.running { background:rgba(251,191,36,0.1); border-color:var(--amber); color:var(--amber); }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="chip-badge">RP2350 · Datasheet §12.4.3.4</div>
+    <h1>FIFO ADC — <span>8 Posições</span></h1>
+    <p class="subtitle">Como o buffer desacopla o ADC (500 kS/s contínuo) da CPU ou DMA</p>
+  </header>
+
+  <!-- Scenario selector -->
+  <div class="scenarios">
+    <button class="sc-btn active" onclick="setScenario('manual')" id="sc-manual">Manual</button>
+    <button class="sc-btn" onclick="setScenario('dma')" id="sc-dma">DMA automático</button>
+    <button class="sc-btn" onclick="setScenario('overflow')" id="sc-overflow">Overflow (CPU lenta)</button>
+    <button class="sc-btn" onclick="setScenario('thresh')" id="sc-thresh">Threshold / IRQ</button>
+  </div>
+
+  <div class="main-grid">
+    <!-- FIFO panel -->
+    <div class="card">
+      <div class="card-title">FIFO — 8 posições</div>
+      <div class="thresh-ctrl">
+        <span>THRESH:</span>
+        <input type="range" id="thresh-slider" min="1" max="8" value="4" oninput="setThresh(this.value)">
+        <span id="thresh-val" style="min-width:16px;font-family:var(--mono);color:var(--amber);">4</span>
+      </div>
+      <div class="fifo-container" id="fifo-slots"></div>
+      <div style="display:flex;gap:16px;margin-top:10px;flex-wrap:wrap;">
+        <span style="font-size:11px;color:var(--blue);">▶ HEAD = próxima leitura</span>
+        <span style="font-size:11px;color:var(--teal);">▶ TAIL = próxima escrita</span>
+        <span style="font-size:11px;color:var(--amber);">- - THRESH</span>
+      </div>
+    </div>
+
+    <!-- Log + metrics -->
+    <div class="card">
+      <div class="card-title">Estado e log</div>
+      <div class="metrics-grid">
+        <div class="metric-box">
+          <div class="val" id="m-level" style="color:var(--purple);">0</div>
+          <div class="lbl">FCS.LEVEL (ocupação)</div>
+        </div>
+        <div class="metric-box">
+          <div class="val" id="m-total" style="color:var(--blue);">0</div>
+          <div class="lbl">Amostras convertidas</div>
+        </div>
+        <div class="metric-box">
+          <div class="val" id="m-read" style="color:var(--teal);">0</div>
+          <div class="lbl">Lidas (CPU / DMA)</div>
+        </div>
+        <div class="metric-box">
+          <div class="val" id="m-over" style="color:var(--red);">0</div>
+          <div class="lbl">FCS.OVER (perdidas)</div>
+        </div>
+      </div>
+      <div class="log-wrap" id="log"></div>
+    </div>
+  </div>
+
+  <!-- Status -->
+  <div class="status-bar info" id="status-bar">
+    <strong>Pronto.</strong> Clique em <strong>+ Amostra ADC</strong> para adicionar uma conversão ao FIFO, ou selecione um cenário acima.
+  </div>
+
+  <!-- Controls -->
+  <div class="ctrl-grid">
+    <button class="btn primary" onclick="adcSample()">+ Amostra ADC</button>
+    <button class="btn success" onclick="cpuRead()">CPU lê FIFO</button>
+    <button class="btn" onclick="dmaFlush()">DMA drena tudo</button>
+    <button class="btn" id="auto-btn" onclick="toggleAuto()">▶ Auto (500 kS/s)</button>
+    <button class="btn" onclick="resetAll()" style="grid-column:span 2;">↺ Resetar tudo</button>
+  </div>
+
+  <!-- Explanation cards -->
+  <div class="explain-grid">
+    <div class="explain-card">
+      <div class="explain-icon">⚡</div>
+      <div class="explain-title">Por que 8 posições?</div>
+      <div class="explain-text">
+        O ADC converte a 500 kS/s = 1 amostra a cada <strong>2 µs</strong>. Com 8 slots, a CPU ou DMA tem até <strong>16 µs</strong> de folga antes que o FIFO encha. Tempo suficiente para responder a uma IRQ. Mais que 8 aumentaria o custo em silício sem ganho prático na maioria das aplicações.
+      </div>
+    </div>
+    <div class="explain-card">
+      <div class="explain-icon">🎯</div>
+      <div class="explain-title">FCS.THRESH e DREQ</div>
+      <div class="explain-text">
+        Quando <span class="code-pill">FCS.LEVEL ≥ THRESH</span>, o sinal <span class="code-pill">DREQ_ADC</span> sobe. Isso ativa o DMA automaticamente ou dispara uma interrupção. Ajuste o slider THRESH acima para ver onde a linha tracejada aparece.
+      </div>
+    </div>
+    <div class="explain-card">
+      <div class="explain-icon">💥</div>
+      <div class="explain-title">FCS.OVER — overflow silencioso</div>
+      <div class="explain-text">
+        Se o ADC tentar escrever com o FIFO cheio, a amostra é <strong>descartada silenciosamente</strong>. O bit <span class="code-pill">FCS.OVER</span> é setado. No cenário "Overflow" acima você verá isso acontecer. Sempre use DMA em aquisições contínuas para evitar perda.
+      </div>
+    </div>
+    <div class="explain-card">
+      <div class="explain-icon">🔄</div>
+      <div class="explain-title">FCS.SHIFT — DMA de 8 bits</div>
+      <div class="explain-text">
+        Cada entrada do FIFO tem 16 bits (<span class="code-pill">bit 15</span> = flag de erro, <span class="code-pill">bits 11:0</span> = dado). Ativando <span class="code-pill">FCS.SHIFT=1</span>, o resultado é deslocado para os 8 bits superiores — permitindo que o DMA transfira em bytes, economizando banda de memória em aplicações de baixa resolução.
+      </div>
+    </div>
+  </div>
+
+  <!-- Timeline diagram -->
+  <div class="card">
+    <div class="card-title">Diagrama temporal — ADC vs. CPU sem FIFO vs. com FIFO</div>
+    <div class="timeline">
+      <div style="font-size:11px;color:var(--muted);font-family:var(--mono);margin-bottom:8px;">→ tempo (cada bloco = 2 µs = 1 conversão ADC @ 500 kS/s)</div>
+
+      <div class="tl-row">
+        <span class="tl-label">ADC</span>
+        <div class="tl-blocks">
+          <div class="tl-block tl-adc">S1</div><div class="tl-block tl-adc">S2</div>
+          <div class="tl-block tl-adc">S3</div><div class="tl-block tl-adc">S4</div>
+          <div class="tl-block tl-adc">S5</div><div class="tl-block tl-adc">S6</div>
+          <div class="tl-block tl-adc">S7</div><div class="tl-block tl-adc">S8</div>
+          <div class="tl-block tl-adc">S9</div><div class="tl-block tl-adc">S10</div>
+        </div>
+      </div>
+
+      <div class="tl-row" style="margin-top:4px;">
+        <span class="tl-label">CPU (sem FIFO)</span>
+        <div class="tl-blocks">
+          <div class="tl-block tl-cpu">lê</div>
+          <div class="tl-block tl-over">❌</div>
+          <div class="tl-block tl-cpu">lê</div>
+          <div class="tl-block tl-over">❌</div>
+          <div class="tl-block tl-cpu">lê</div>
+          <div class="tl-block tl-over">❌</div>
+          <div class="tl-block tl-cpu">lê</div>
+          <div class="tl-block tl-over">❌</div>
+          <div class="tl-block tl-cpu">lê</div>
+          <div class="tl-block tl-over">❌</div>
+        </div>
+      </div>
+
+      <div class="tl-row" style="margin-top:4px;">
+        <span class="tl-label">FIFO (8 slots)</span>
+        <div class="tl-blocks">
+          <div class="tl-block tl-fifo">1</div>
+          <div class="tl-block tl-fifo">2</div>
+          <div class="tl-block tl-fifo">3</div>
+          <div class="tl-block tl-fifo">4</div>
+          <div class="tl-block tl-fifo">5</div>
+          <div class="tl-block tl-fifo">6</div>
+          <div class="tl-block tl-fifo">7</div>
+          <div class="tl-block tl-fifo">8</div>
+          <div class="tl-block tl-fifo" style="opacity:0.4;">9?</div>
+          <div class="tl-block tl-over">OVER</div>
+        </div>
+      </div>
+
+      <div class="tl-row" style="margin-top:4px;">
+        <span class="tl-label">CPU (com FIFO)</span>
+        <div class="tl-blocks">
+          <div class="tl-block tl-gap"></div>
+          <div class="tl-block tl-gap"></div>
+          <div class="tl-block tl-gap"></div>
+          <div class="tl-block tl-gap"></div>
+          <div class="tl-block tl-cpu" style="flex:3;">lê 4 amostras de uma vez</div>
+          <div class="tl-block tl-gap"></div>
+          <div class="tl-block tl-gap"></div>
+          <div class="tl-block tl-gap"></div>
+          <div class="tl-block tl-cpu" style="flex:2;">lê</div>
+        </div>
+      </div>
+
+      <div style="font-size:11px;color:var(--muted);margin-top:10px;font-family:var(--mono);">
+        ❌ = amostra perdida sem FIFO &nbsp;|&nbsp; FIFO acumula e a CPU lê em lote quando conveniente
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <p>RP2350 Datasheet — Seção 12.4.3.4 · ADC Sample FIFO</p>
+    <p style="margin-top:6px;">FCS = FIFO Control and Status · DREQ = DMA Request · OVER = Overflow flag</p>
+  </footer>
+</div>
+
+<script>
+  const FIFO_SIZE = 8;
+  let fifo = [], totalIn = 0, totalRead = 0, totalOver = 0;
+  let thresh = 4, scenario = 'manual', autoTimer = null, sampleN = 0;
+
+  function randSample() {
+    sampleN++;
+    const val = Math.floor(Math.random() * 4096);
+    const ch = (sampleN - 1) % 4;
+    return { val: '0x' + val.toString(16).toUpperCase().padStart(3,'0'), ch, n: sampleN };
+  }
+
+  function log(msg, type='') {
+    const el = document.getElementById('log');
+    const d = document.createElement('div');
+    d.className = 'log-entry';
+    const now = new Date();
+    const t = now.toTimeString().substr(0,8);
+    d.innerHTML = `<span class="log-time">${t}</span><span class="log-msg ${type}">${msg}</span>`;
+    el.insertBefore(d, el.firstChild);
+    while (el.children.length > 60) el.removeChild(el.lastChild);
+  }
+
+  function setStatus(msg, type='info') {
+    const el = document.getElementById('status-bar');
+    el.className = 'status-bar ' + type;
+    el.innerHTML = msg;
+  }
+
+  function renderFifo() {
+    const c = document.getElementById('fifo-slots');
+    c.innerHTML = '';
+    for (let i = 0; i < FIFO_SIZE; i++) {
+      const slot = document.createElement('div');
+      const filled = i < fifo.length;
+      slot.className = 'fifo-slot' + (filled ? ' filled' : '');
+
+      const isThresh = i === thresh - 1;
+      if (isThresh) slot.classList.add('thresh-line');
+
+      const tags = document.createElement('div');
+      tags.className = 'slot-tags';
+
+      if (filled && i === 0) {
+        const t = document.createElement('span');
+        t.className = 'tag head'; t.textContent = 'HEAD';
+        tags.appendChild(t);
+      }
+      if (i === fifo.length && i < FIFO_SIZE) {
+        const t = document.createElement('span');
+        t.className = 'tag tail'; t.textContent = 'TAIL';
+        tags.appendChild(t);
+      }
+      if (isThresh) {
+        const t = document.createElement('span');
+        t.className = 'tag thresh'; t.textContent = 'THRESH';
+        tags.appendChild(t);
+      }
+
+      const label = document.createElement('span');
+      label.textContent = filled
+        ? `[${i}] ${fifo[i].val}  ch${fifo[i].ch}`
+        : `[${i}]  — vazio —`;
+
+      slot.appendChild(label);
+      slot.appendChild(tags);
+      c.appendChild(slot);
+    }
+
+    document.getElementById('m-level').textContent = fifo.length;
+    document.getElementById('m-total').textContent = totalIn;
+    document.getElementById('m-read').textContent = totalRead;
+    document.getElementById('m-over').textContent = totalOver;
+
+    // Status
+    if (fifo.length === 0) {
+      setStatus('<strong>FIFO vazio.</strong> FCS.LEVEL = 0. O ADC pode escrever até 8 amostras antes de a CPU precisar ler.', 'info');
+    } else if (fifo.length >= FIFO_SIZE) {
+      setStatus('⚠ <strong>FIFO cheio (8/8)!</strong> Próxima conversão do ADC causará <strong>FCS.OVER = 1</strong> e a amostra será <strong>descartada silenciosamente</strong>.', 'error');
+    } else if (fifo.length >= thresh) {
+      setStatus(`🎯 <strong>DREQ ativo!</strong> FCS.LEVEL (${fifo.length}) ≥ THRESH (${thresh}). O sinal DREQ_ADC está alto — DMA pode iniciar transferência ou IRQ pode ser disparada.`, 'warn');
+    } else {
+      setStatus(`FIFO com ${fifo.length}/8 amostras. FCS.LEVEL = ${fifo.length}. DREQ inativo (nível < THRESH ${thresh}).`, 'info');
+    }
+  }
+
+  function adcSample() {
+    if (fifo.length >= FIFO_SIZE) {
+      totalOver++; totalIn++;
+      log(`ADC S${sampleN+1}: FIFO cheio → OVERFLOW! FCS.OVER = ${totalOver}`, 'error');
+      sampleN++;
+      renderFifo();
+      return;
+    }
+    const s = randSample();
+    fifo.push(s); totalIn++;
+    log(`ADC → FIFO[${fifo.length-1}] = ${s.val} (ch${s.ch}, S${s.n})`, 'info');
+    renderFifo();
+  }
+
+  function cpuRead() {
+    if (fifo.length === 0) {
+      log('CPU: FIFO vazio → FCS.UNDER flag (underflow)', 'warn');
+      return;
+    }
+    const s = fifo.shift(); totalRead++;
+    log(`CPU leu ← ${s.val} (ch${s.ch}) | FIFO restante: ${fifo.length}`, 'success');
+    renderFifo();
+  }
+
+  function dmaFlush() {
+    if (fifo.length === 0) { log('DMA: FIFO já vazio', 'warn'); return; }
+    const n = fifo.length;
+    const vals = fifo.splice(0); totalRead += n;
+    log(`DMA transferiu ${n} amostras → RAM`, 'purple');
+    vals.forEach(s => log(`  RAM ← ${s.val} (ch${s.ch})`, 'purple'));
+    renderFifo();
+  }
+
+  function setThresh(v) {
+    thresh = parseInt(v);
+    document.getElementById('thresh-val').textContent = v;
+    renderFifo();
+  }
+
+  function resetAll() {
+    stopAuto();
+    fifo = []; totalIn = 0; totalRead = 0; totalOver = 0; sampleN = 0;
+    document.getElementById('log').innerHTML = '';
+    renderFifo();
+    setStatus('<strong>Resetado.</strong> Selecione um cenário ou clique em + Amostra ADC.', 'info');
+  }
+
+  function stopAuto() {
+    if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+    document.getElementById('auto-btn').textContent = '▶ Auto (500 kS/s)';
+    document.getElementById('auto-btn').classList.remove('running');
+  }
+
+  function toggleAuto() {
+    if (autoTimer) { stopAuto(); return; }
+    document.getElementById('auto-btn').textContent = '⏹ Parar';
+    document.getElementById('auto-btn').classList.add('running');
+
+    autoTimer = setInterval(() => {
+      if (scenario === 'overflow') {
+        adcSample();
+      } else if (scenario === 'dma') {
+        adcSample();
+        if (fifo.length >= thresh) dmaFlush();
+      } else if (scenario === 'thresh') {
+        adcSample();
+        if (fifo.length >= thresh) {
+          log(`IRQ! THRESH=${thresh} atingido → CPU acorda e lê ${thresh} amostras`, 'warn');
+          for (let i = 0; i < thresh; i++) cpuRead();
+        }
+      } else {
+        adcSample();
+      }
+    }, 700);
+  }
+
+  const scenarioTips = {
+    manual:   '<strong>Modo manual.</strong> Use os botões para explorar passo a passo.',
+    dma:      '🔄 <strong>DMA automático.</strong> Quando o FIFO atinge o THRESH, o DMA drena tudo. Use Auto para ver o ciclo.',
+    overflow: '💥 <strong>Overflow.</strong> O ADC enche o FIFO mais rápido do que a CPU lê. Use Auto e observe o FCS.OVER subir.',
+    thresh:   '🎯 <strong>Threshold IRQ.</strong> Quando o FIFO atinge o THRESH, a CPU "acorda" e lê. Ajuste o slider THRESH.',
+  };
+
+  function setScenario(s) {
+    stopAuto(); resetAll();
+    scenario = s;
+    ['manual','dma','overflow','thresh'].forEach(id => {
+      document.getElementById('sc-'+id).classList.toggle('active', id===s);
+    });
+    setStatus(scenarioTips[s] || scenarioTips.manual, 'info');
+  }
+
+  renderFifo();
+</script>
+</body>
+</html>
