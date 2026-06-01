@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Interrupção Externa — Simulador</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,Arial,sans-serif;background:#f4f6f9;color:#1a1a1a;padding:1.5rem;min-height:100vh}
+h1{font-size:20px;font-weight:600;margin-bottom:4px;color:#1a1a1a}
+.subtitle{font-size:14px;color:#64748b;margin-bottom:1.25rem}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 180px;gap:12px;margin-bottom:12px}
+.panel{border:1px solid #e2e8f0;border-radius:12px;background:#fff;overflow:hidden}
+.ph{padding:7px 12px;border-bottom:1px solid #e2e8f0;font-size:11px;font-weight:600;color:#64748b;letter-spacing:.06em;text-transform:uppercase;background:#f8fafc}
+.pb{padding:8px}
+.mrow{display:flex;align-items:center;gap:6px;padding:5px 7px;border-radius:6px;font-size:13px;font-family:'Courier New',monospace;transition:background .15s,color .15s;cursor:default}
+.mrow .ad{color:#94a3b8;min-width:52px;font-size:11px}
+.mrow .ic{flex:1;color:#475569}
+.mrow .mk{width:8px;height:8px;border-radius:50%;background:transparent;flex-shrink:0;transition:background .15s}
+.mrow.cur{background:#dbeafe;color:#1e3a8a}
+.mrow.cur .ic{color:#1e40af}
+.mrow.cur .mk{background:#2563eb}
+.mrow.isr{background:#dcfce7;color:#14532d}
+.mrow.isr .ic{color:#166534}
+.mrow.isr .mk{background:#16a34a}
+.sep{border:none;border-top:1px dashed #e2e8f0;margin:5px 0}
+.sec-lbl{font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;padding:2px 8px}
+.regs{display:flex;flex-direction:column;gap:5px;padding:8px}
+.reg{display:flex;justify-content:space-between;align-items:center;padding:6px 9px;border-radius:7px;background:#f8fafc;border:1px solid #e2e8f0}
+.reg .rn{color:#64748b;font-size:11px}
+.reg .rv{font-family:'Courier New',monospace;font-weight:700;color:#1a1a1a;font-size:14px;transition:color .2s}
+.reg .rv.flash{color:#2563eb}
+.reg .rv.gflash{color:#16a34a}
+.stack-area{display:flex;flex-direction:column;gap:4px;padding:8px}
+.sentry{padding:5px 9px;border-radius:7px;font-size:12px;font-family:'Courier New',monospace;display:flex;justify-content:space-between;align-items:center;background:#f8fafc;color:#64748b;border:1px solid #e2e8f0;transition:all .3s}
+.sentry.pushed{background:#fef9c3;color:#713f12;border-color:#fde047}
+.sentry-lbl{font-size:10px;color:#94a3b8}
+.empty-stack{font-size:12px;color:#94a3b8;text-align:center;padding:10px 0}
+.periph-box{padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.pin-val{font-size:22px;font-weight:700;font-family:'Courier New',monospace;color:#1a1a1a;transition:color .2s}
+.pin-val.high{color:#16a34a}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:600}
+.badge.running{background:#dcfce7;color:#14532d}
+.badge.isr{background:#fef9c3;color:#713f12}
+.badge.halted{background:#f1f5f9;color:#64748b}
+.irq-row{display:flex;align-items:center;gap:8px;padding:5px 8px}
+.wire-lbl{font-size:11px;color:#64748b;white-space:nowrap;font-weight:600}
+.wire{flex:1;height:5px;border-radius:3px;background:#e2e8f0;overflow:hidden;position:relative}
+.wire-p{position:absolute;top:0;left:-60px;width:60px;height:5px;border-radius:3px;background:#ef4444}
+.wire.fire .wire-p{animation:wpulse .55s ease-in forwards}
+@keyframes wpulse{from{left:-60px}to{left:110%}}
+.status{padding:9px 13px;font-size:13px;font-weight:500;border-radius:9px;border:1px solid #e2e8f0;background:#f8fafc;color:#64748b;margin-bottom:10px;min-height:38px;display:flex;align-items:center;gap:8px;line-height:1.45;transition:all .2s}
+.status.blue{background:#dbeafe;border-color:#93c5fd;color:#1e3a8a}
+.status.green{background:#dcfce7;border-color:#86efac;color:#14532d}
+.status.amber{background:#fef9c3;border-color:#fde047;color:#713f12}
+.status.red{background:#fee2e2;border-color:#fca5a5;color:#991b1b}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px}
+button{padding:7px 16px;border-radius:8px;border:1px solid #cbd5e1;font-size:13px;font-weight:500;cursor:pointer;background:#fff;color:#1a1a1a;transition:all .15s}
+button:hover{background:#f1f5f9}
+button:active{transform:scale(.97)}
+button:disabled{opacity:.38;cursor:not-allowed}
+.btn-irq{background:#fee2e2;border-color:#fca5a5;color:#991b1b}
+.btn-irq:hover{background:#fca5a5}
+.spd-row{display:flex;align-items:center;gap:8px;font-size:12px;color:#64748b}
+.spd-row input{flex:1}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:#64748b;margin-bottom:12px}
+.leg-item{display:flex;align-items:center;gap:5px}
+.leg-dot{width:10px;height:10px;border-radius:50%}
+footer{margin-top:16px;font-size:11px;color:#94a3b8;text-align:center}
+@media(max-width:680px){.layout{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<h1>Simulador — Interrupção Externa (GPIO)</h1>
+<p class="subtitle">Programa genérico rodando em loop. Acione a interrupção a qualquer momento e observe o fluxo de execução.</p>
+
+<div class="legend">
+  <div class="leg-item"><div class="leg-dot" style="background:#2563eb"></div><span>instrução atual (main)</span></div>
+  <div class="leg-item"><div class="leg-dot" style="background:#16a34a"></div><span>instrução atual (ISR)</span></div>
+  <div class="leg-item"><div class="leg-dot" style="background:#ef4444"></div><span>pulso na linha IRQ</span></div>
+  <div class="leg-item"><div class="leg-dot" style="background:#ca8a04"></div><span>dado na pilha</span></div>
+</div>
+
+<div class="layout">
+  <!-- MEMÓRIA -->
+  <div class="panel">
+    <div class="ph">Memória de programa</div>
+    <div class="pb" id="main-mem">
+      <div class="mrow cur" data-i="0"><div class="mk"></div><div class="ad">0x0100</div><div class="ic">Cmd A &nbsp;— soma acumulador</div></div>
+      <div class="mrow"     data-i="1"><div class="mk"></div><div class="ad">0x0102</div><div class="ic">Cmd B &nbsp;— carrega sensor</div></div>
+      <div class="mrow"     data-i="2"><div class="mk"></div><div class="ad">0x0104</div><div class="ic">Cmd C &nbsp;— compara valor</div></div>
+      <div class="mrow"     data-i="3"><div class="mk"></div><div class="ad">0x0106</div><div class="ic">Cmd D &nbsp;— armazena resultado</div></div>
+      <div class="mrow"     data-i="4"><div class="mk"></div><div class="ad">0x0108</div><div class="ic">Cmd E &nbsp;— atualiza display</div></div>
+      <div class="mrow"     data-i="5"><div class="mk"></div><div class="ad">0x010A</div><div class="ic">Cmd F &nbsp;— verifica timeout</div></div>
+      <div class="mrow"     data-i="6"><div class="mk"></div><div class="ad">0x010C</div><div class="ic">Cmd G &nbsp;— processa fila</div></div>
+      <div class="mrow"     data-i="7"><div class="mk"></div><div class="ad">0x010E</div><div class="ic">JMP 0x0100 → reinicia loop</div></div>
+    </div>
+    <hr class="sep">
+    <div class="sec-lbl">ISR — Rotina de Tratamento da Interrupção Externa</div>
+    <div class="pb" id="isr-mem">
+      <div class="mrow" data-i="0"><div class="mk"></div><div class="ad">0x0200</div><div class="ic">Cmd K &nbsp;— salva contexto</div></div>
+      <div class="mrow" data-i="1"><div class="mk"></div><div class="ad">0x0202</div><div class="ic">Cmd J &nbsp;— lê estado do botão</div></div>
+      <div class="mrow" data-i="2"><div class="mk"></div><div class="ad">0x0204</div><div class="ic">Cmd W — executa ação</div></div>
+      <div class="mrow" data-i="3"><div class="mk"></div><div class="ad">0x0206</div><div class="ic">CLR IRQ_FLAG — limpa flag</div></div>
+      <div class="mrow" data-i="4"><div class="mk"></div><div class="ad">0x0208</div><div class="ic">Cmd L &nbsp;— restaura contexto</div></div>
+      <div class="mrow" data-i="5"><div class="mk"></div><div class="ad">0x020A</div><div class="ic">RETI &nbsp;&nbsp;&nbsp;— retorna da interrupção</div></div>
+    </div>
+  </div>
+
+  <!-- REGISTRADORES + PILHA -->
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <div class="panel">
+      <div class="ph">Registradores da CPU</div>
+      <div class="regs">
+        <div class="reg"><span class="rn">PC — Program Counter</span><span class="rv" id="reg-pc">0x0100</span></div>
+        <div class="reg"><span class="rn">SP — Stack Pointer</span><span class="rv" id="reg-sp">0xFF00</span></div>
+        <div class="reg"><span class="rn">ACC — Acumulador</span><span class="rv" id="reg-acc">0x0000</span></div>
+        <div class="reg"><span class="rn">STATUS</span><span class="rv" id="reg-sta">RUN</span></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="ph">Pilha (Stack)</div>
+      <div class="stack-area" id="stack">
+        <div class="empty-stack">— vazia —</div>
+      </div>
+    </div>
+    <div class="irq-row">
+      <span class="wire-lbl">Linha IRQ</span>
+      <div class="wire" id="irq-wire"><div class="wire-p"></div></div>
+      <span class="wire-lbl">NVIC / CPU</span>
+    </div>
+  </div>
+
+  <!-- PERIFÉRICO + ESTADO -->
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <div class="panel">
+      <div class="ph">Periférico — botão</div>
+      <div class="periph-box">
+        <div style="font-size:12px;color:#64748b">Pino GP14</div>
+        <div class="pin-val" id="pin-val">LOW</div>
+        <div style="font-size:11px;color:#94a3b8">borda de subida → IRQ</div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="ph">Estado</div>
+      <div style="padding:10px 12px;display:flex;flex-direction:column;gap:7px">
+        <div class="badge halted" id="cpu-badge">rodando main</div>
+        <div style="font-size:12px;color:#64748b" id="cycle-cnt">ciclos: 0</div>
+        <div style="font-size:12px;color:#64748b" id="irq-cnt">interrupções: 0</div>
+      </div>
+    </div>
+    <div class="spd-row">
+      <span>Vel:</span>
+      <input type="range" min="1" max="5" value="3" step="1" id="speed">
+      <span id="spd-lbl">normal</span>
+    </div>
+  </div>
+</div>
+
+<div class="status blue" id="status-bar">Processador executando o programa principal em loop contínuo. Acione a interrupção a qualquer momento.</div>
+<div class="btn-row">
+  <button onclick="togglePause()" id="btn-pause">Pausar</button>
+  <button class="btn-irq" onclick="fireIRQ()" id="btn-irq">⚡ Acionar interrupção externa</button>
+  <button onclick="resetSim()">↺ Reiniciar</button>
+</div>
+
+<footer>Objeto de Aprendizagem — Interrupção Externa (GPIO) | RP2350 / Microprocessadores</footer>
+
+<script>
+var S = {
+  mainAddr: ['0x0100','0x0102','0x0104','0x0106','0x0108','0x010A','0x010C','0x010E'],
+  isrAddr:  ['0x0200','0x0202','0x0204','0x0206','0x0208','0x020A'],
+  mainLbl:  ['Cmd A','Cmd B','Cmd C','Cmd D','Cmd E','Cmd F','Cmd G','JMP 0x0100'],
+  isrLbl:   ['Cmd K','Cmd J','Cmd W','CLR IRQ_FLAG','Cmd L','RETI'],
+  cur: 0, inISR: false, paused: false,
+  timer: null, irqPending: false,
+  cycles: 0, irqs: 0, acc: 0, retAddr: null, retAddrNext: null, lastCur: 0
+};
+var spdLabels = ['muito lento','lento','normal','rápido','muito rápido'];
+
+function getDelay() {
+  var v = parseInt(document.getElementById('speed').value);
+  document.getElementById('spd-lbl').textContent = spdLabels[v-1];
+  return [1400,900,550,300,130][v-1];
+}
+
+function flash(id, cls) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.classList.add(cls || 'flash');
+  setTimeout(function(){ el.classList.remove(cls || 'flash'); }, 400);
+}
+
+function hlMain(idx) {
+  document.querySelectorAll('#main-mem .mrow').forEach(function(r){ r.className = 'mrow'; });
+  document.querySelectorAll('#isr-mem .mrow').forEach(function(r){ r.className = 'mrow'; });
+  var rows = document.querySelectorAll('#main-mem .mrow');
+  if (rows[idx]) rows[idx].className = 'mrow cur';
+}
+
+function hlISR(idx) {
+  document.querySelectorAll('#main-mem .mrow').forEach(function(r){ r.className = 'mrow'; });
+  document.querySelectorAll('#isr-mem .mrow').forEach(function(r){ r.className = 'mrow'; });
+  var rows = document.querySelectorAll('#isr-mem .mrow');
+  if (rows[idx]) rows[idx].className = 'mrow isr';
+}
+
+function setStatus(cls, msg) {
+  var el = document.getElementById('status-bar');
+  el.className = 'status ' + (cls || '');
+  el.textContent = msg;
+}
+
+function setPC(addr, green) {
+  var el = document.getElementById('reg-pc');
+  el.textContent = addr;
+  el.classList.remove('flash','gflash');
+  void el.offsetWidth;
+  el.classList.add(green ? 'gflash' : 'flash');
+  setTimeout(function(){ el.classList.remove('flash','gflash'); }, 500);
+}
+
+function step() {
+  if (S.paused) return;
+  S.cycles++;
+  document.getElementById('cycle-cnt').textContent = 'ciclos: ' + S.cycles;
+
+  if (S.irqPending && !S.inISR) {
+    S.irqPending = false;
+    S.irqs++;
+    document.getElementById('irq-cnt').textContent = 'interrupções: ' + S.irqs;
+    S.retAddr = S.mainAddr[S.lastCur];
+    S.retAddrNext = '0x' + (parseInt(S.mainAddr[S.lastCur], 16) + 2).toString(16).toUpperCase().padStart(4, '0');
+    document.getElementById('reg-sta').textContent = 'IRQ!';
+    document.getElementById('reg-sp').textContent = '0xFEFE';
+    flash('reg-sp');
+    var stk = document.getElementById('stack');
+    stk.innerHTML = '<div class="sentry pushed"><span>PC = ' + S.retAddrNext + '</span><span class="sentry-lbl">endereço de retorno (PC+1)</span></div>';
+    setStatus('amber', 'IRQ aceita! Salvo na Pilha: PC = ' + S.retAddrNext + ' (endereço de retorno). Desviando para ISR em 0x0200...');
+    S.inISR = true;
+    S.cur = 0;
+    document.getElementById('cpu-badge').className = 'badge isr';
+    document.getElementById('cpu-badge').textContent = 'executando ISR';
+    setTimeout(function() {
+      hlISR(0);
+      setPC('0x0200', true);
+      document.getElementById('reg-sta').textContent = 'ISR';
+    }, getDelay() * 0.5);
+    return;
+  }
+
+  if (S.inISR) {
+    hlISR(S.cur);
+    setPC(S.isrAddr[S.cur], true);
+    if (S.cur === 0) {
+      setStatus('amber', 'ISR: Cmd K — Salvando contexto (registradores empilhados). Executando rotina...');
+    } else if (S.cur === 3) {
+      setStatus('amber', 'ISR: CLR IRQ_FLAG — Flag de interrupção limpa. Próximo: restaurar contexto.');
+    } else if (S.cur === 4) {
+      setStatus('amber', 'ISR: Cmd L — Restaurando contexto (registradores desempilhados). Próximo: RETI.');
+    } else if (S.cur === 5) {
+      setStatus('green', 'RETI! Recuperando PC = ' + S.retAddrNext + ' da Pilha → voltando para ' + S.retAddr + ' (executa instrução interrompida).');
+      document.getElementById('reg-sta').textContent = 'RETI';
+      var stk = document.getElementById('stack');
+      stk.innerHTML = '<div class="sentry" style="font-style:italic;color:#94a3b8">desempilhando...</div>';
+      setTimeout(function() {
+        stk.innerHTML = '<div class="empty-stack">— vazia —</div>';
+        document.getElementById('reg-sp').textContent = '0xFF00';
+        flash('reg-sp');
+      }, getDelay() * 0.8);
+      S.inISR = false;
+      S.cur = S.lastCur;
+      document.getElementById('pin-val').textContent = 'LOW';
+      document.getElementById('pin-val').className = 'pin-val';
+      document.getElementById('cpu-badge').className = 'badge running';
+      document.getElementById('cpu-badge').textContent = 'rodando main';
+      document.getElementById('reg-sta').textContent = 'RUN';
+      setTimeout(function() {
+        hlMain(S.cur);
+        setPC(S.mainAddr[S.cur]);
+        setStatus('blue', 'Retornou para ' + S.retAddr + ' — programa principal continua exatamente de onde parou!');
+      }, getDelay());
+      return;
+    }
+    S.cur++;
+    if (S.cur >= S.isrAddr.length) S.cur = S.isrAddr.length - 1;
+  } else {
+    S.acc = (S.acc + Math.floor(Math.random() * 0x10)) & 0xFFFF;
+    document.getElementById('reg-acc').textContent = '0x' + S.acc.toString(16).toUpperCase().padStart(4,'0');
+    flash('reg-acc');
+    hlMain(S.cur);
+    setPC(S.mainAddr[S.cur]);
+    setStatus('blue', 'Executando ' + S.mainLbl[S.cur] + ' em ' + S.mainAddr[S.cur] + '. Loop contínuo — aguardando interrupção.');
+    S.lastCur = S.cur;
+    S.cur = (S.cur + 1) % S.mainAddr.length;
+  }
+}
+
+function run() {
+  if (S.timer) clearInterval(S.timer);
+  S.timer = setInterval(step, getDelay());
+}
+
+function togglePause() {
+  S.paused = !S.paused;
+  var btn = document.getElementById('btn-pause');
+  if (S.paused) {
+    btn.textContent = 'Continuar';
+    setStatus('amber', 'Simulação pausada.');
+  } else {
+    btn.textContent = 'Pausar';
+    setStatus('blue', 'Executando programa principal em loop contínuo.');
+    run();
+  }
+}
+
+function fireIRQ() {
+  if (S.inISR) return;
+  S.irqPending = true;
+  document.getElementById('pin-val').textContent = 'HIGH';
+  document.getElementById('pin-val').className = 'pin-val high';
+  var wire = document.getElementById('irq-wire');
+  wire.classList.add('fire');
+  setTimeout(function(){ wire.classList.remove('fire'); }, 650);
+  document.getElementById('btn-irq').disabled = true;
+  setTimeout(function(){ document.getElementById('btn-irq').disabled = false; }, 3500);
+  setStatus('red', 'Borda de subida detectada em GP14! IRQ pendente → será aceita no próximo ciclo de instrução.');
+}
+
+function resetSim() {
+  clearInterval(S.timer);
+  S.cur=0; S.inISR=false; S.paused=false; S.irqPending=false;
+  S.cycles=0; S.irqs=0; S.acc=0; S.retAddr=null; S.retAddrNext=null; S.lastCur=0;
+  document.getElementById('reg-pc').textContent='0x0100';
+  document.getElementById('reg-sp').textContent='0xFF00';
+  document.getElementById('reg-acc').textContent='0x0000';
+  document.getElementById('reg-sta').textContent='RUN';
+  document.getElementById('pin-val').textContent='LOW';
+  document.getElementById('pin-val').className='pin-val';
+  document.getElementById('cycle-cnt').textContent='ciclos: 0';
+  document.getElementById('irq-cnt').textContent='interrupções: 0';
+  document.getElementById('cpu-badge').className='badge running';
+  document.getElementById('cpu-badge').textContent='rodando main';
+  document.getElementById('btn-pause').textContent='Pausar';
+  document.getElementById('btn-irq').disabled=false;
+  document.getElementById('stack').innerHTML='<div class="empty-stack">— vazia —</div>';
+  document.querySelectorAll('#main-mem .mrow').forEach(function(r){ r.className='mrow'; });
+  document.querySelectorAll('#isr-mem .mrow').forEach(function(r){ r.className='mrow'; });
+  document.querySelector('#main-mem .mrow').className='mrow cur';
+  setStatus('blue','Processador executando o programa principal em loop contínuo. Acione a interrupção a qualquer momento.');
+  run();
+}
+
+document.getElementById('speed').addEventListener('input', function() {
+  if (!S.paused) run();
+});
+
+run();
+</script>
+</body>
+</html>
