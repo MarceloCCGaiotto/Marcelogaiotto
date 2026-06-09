@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Registradores de Deslocamento</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700&family=Exo+2:wght@300;400;600&display=swap');
+:root{
+  --bg:#07090f;--surf:#0e1320;--panel:#121828;--bord:#1a2840;
+  --clk:#00d4ff;--dat:#ff7030;--out:#30ff80;--qbar:#cc55ff;
+  --txt:#b8cce0;--dim:#3a5570;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);font-family:'Exo 2',sans-serif;min-height:100vh}
+header{background:linear-gradient(135deg,#050810,#0c1828);border-bottom:2px solid var(--bord);padding:13px 22px;display:flex;align-items:center;gap:13px}
+.hico{width:36px;height:36px;background:conic-gradient(var(--clk),var(--dat),var(--out),var(--clk));border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:'Share Tech Mono',monospace;font-size:14px;color:#000;font-weight:bold;flex-shrink:0}
+header h1{font-family:'Orbitron',monospace;font-size:.95rem;color:var(--clk);letter-spacing:.06em}
+header p{font-size:.7rem;color:var(--dim);margin-top:1px}
+.tabs{display:flex;background:var(--surf);border-bottom:2px solid var(--bord);padding:0 22px}
+.tbtn{padding:10px 26px;border:none;background:transparent;color:var(--dim);font-family:'Orbitron',monospace;font-size:.66rem;letter-spacing:.08em;cursor:pointer;border-bottom:3px solid transparent;transition:all .2s;position:relative;top:2px}
+.tbtn.on{color:var(--clk);border-bottom-color:var(--clk)}
+.tc{display:none}.tc.on{display:block}
+.pg{display:grid;grid-template-columns:1fr 295px;gap:14px;padding:14px 22px}
+.lc,.rc{display:flex;flex-direction:column;gap:13px}
+.card{background:var(--panel);border:1px solid var(--bord);border-radius:8px;padding:13px 16px}
+.ctit{font-family:'Orbitron',monospace;font-size:.63rem;letter-spacing:.12em;color:var(--clk);text-transform:uppercase;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--bord)}
+.qrow{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:9px}
+.qrow label{font-size:.73rem;color:var(--dim);min-width:88px}
+.bbit{width:30px;height:30px;border:2px solid var(--bord);border-radius:4px;background:var(--surf);font-family:'Share Tech Mono',monospace;font-size:.9rem;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;position:relative;user-select:none;flex-shrink:0}
+.bbit.ptr::after{content:'▼';position:absolute;top:-15px;left:50%;transform:translateX(-50%);font-size:.58rem;animation:blk .65s infinite}
+@keyframes blk{0%,100%{opacity:1}50%{opacity:.1}}
+.bsz{padding:4px 11px;background:var(--surf);border:1px solid var(--bord);border-radius:4px;color:var(--dim);font-family:'Orbitron',monospace;font-size:.63rem;cursor:pointer;transition:all .2s}
+.bsz.on,.bsz:hover{background:#001828;border-color:var(--clk);color:var(--clk)}
+.bact{padding:4px 9px;background:var(--surf);border:1px solid var(--bord);border-radius:4px;color:var(--dim);font-family:'Share Tech Mono',monospace;font-size:.72rem;cursor:pointer}
+.bact:hover{border-color:var(--dat);color:var(--dat)}
+.diagwrap{background:#040710;border:1px solid var(--bord);border-radius:8px;padding:18px 14px 14px;position:relative;overflow:auto}
+.wfarea{background:#040710;border:1px solid var(--bord);border-radius:7px;padding:9px 11px;overflow-x:auto}
+.wfrow{display:flex;align-items:center;gap:7px;margin-bottom:5px}
+.wflbl{font-family:'Share Tech Mono',monospace;font-size:.64rem;color:var(--dim);width:36px;text-align:right;flex-shrink:0}
+.cdot{width:11px;height:11px;border-radius:50%;background:#001416;border:2px solid var(--dim);transition:all .12s;flex-shrink:0}
+.cdot.hi{background:var(--clk);border-color:var(--clk);box-shadow:0 0 8px var(--clk)}
+.mrow{display:flex;gap:6px;margin-bottom:11px}
+.bmod{flex:1;padding:6px;border:1px solid var(--bord);background:var(--surf);color:var(--dim);border-radius:5px;font-family:'Orbitron',monospace;font-size:.6rem;cursor:pointer;transition:all .2s}
+.bmod.on,.bmod:hover{background:#001828;border-color:var(--clk);color:var(--clk)}
+.sprow{display:flex;align-items:center;gap:7px;margin-bottom:11px}
+.sprow label{font-size:.7rem;color:var(--dim);width:46px}
+input[type=range]{flex:1;accent-color:var(--clk);cursor:pointer}
+.spv{font-family:'Share Tech Mono',monospace;font-size:.68rem;color:var(--clk);min-width:34px}
+.bclk{width:100%;padding:11px;background:linear-gradient(135deg,#001828,#003050);border:2px solid var(--clk);border-radius:6px;color:var(--clk);font-family:'Orbitron',monospace;font-size:.72rem;letter-spacing:.1em;cursor:pointer;transition:all .15s;box-shadow:0 0 8px rgba(0,212,255,.16);margin-bottom:6px}
+.bclk:hover{box-shadow:0 0 18px rgba(0,212,255,.4)}
+.bclk.pulse{animation:cpls .18s ease-out}
+@keyframes cpls{0%{box-shadow:0 0 8px rgba(0,212,255,.16)}50%{box-shadow:0 0 32px rgba(0,212,255,.9)}100%{box-shadow:0 0 8px rgba(0,212,255,.16)}}
+.brst{width:100%;padding:7px;background:transparent;border:1px solid #3a1020;border-radius:5px;color:#cc3344;font-family:'Orbitron',monospace;font-size:.6rem;cursor:pointer;transition:all .2s}
+.brst:hover{background:#1a0008;border-color:#ff2244;color:#ff4455}
+.sttbl{width:100%;border-collapse:collapse;font-family:'Share Tech Mono',monospace;font-size:.66rem}
+.sttbl th{background:var(--surf);color:var(--dim);padding:4px 5px;border:1px solid var(--bord);text-align:center}
+.sttbl td{padding:4px 5px;border:1px solid var(--bord);text-align:center;color:var(--dim)}
+.sttbl tr.cur td{background:#001828}
+.infobox{background:#050c18;border-left:3px solid var(--clk);border-radius:0 5px 5px 0;padding:8px 11px;font-size:.72rem;line-height:1.6;color:var(--dim)}
+.infobox strong{color:var(--clk)}
+/* animated bubbles — fixed position so they can cross the whole screen */
+.bub{
+  position:fixed;
+  width:22px;height:22px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Share Tech Mono',monospace;font-size:.78rem;font-weight:bold;color:#000;
+  pointer-events:none;z-index:9999;
+  box-shadow:0 0 8px currentColor;
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="hico">SR</div>
+  <div>
+    <h1>Registradores de Deslocamento</h1>
+    <p>Sistemas Digitais · FF Tipo D e JK · Objeto de Aprendizagem Interativo</p>
+  </div>
+</header>
+<div class="tabs">
+  <button class="tbtn on" id="tbn-d"  onclick="swTab('d')">▶ FF Tipo D</button>
+  <button class="tbtn"    id="tbn-jk" onclick="swTab('jk')">▶ FF Tipo JK</button>
+</div>
+
+<!-- TAB D -->
+<div class="tc on" id="tab-d">
+<div class="pg">
+  <div class="lc">
+    <div class="card">
+      <div class="ctit">⚙ Configuração</div>
+      <div style="display:flex;align-items:center;gap:7px;margin-bottom:9px;flex-wrap:wrap">
+        <label style="font-size:.73rem;color:var(--dim)">Bits:</label>
+        <button class="bsz" onclick="setSz('d',2,this)">2</button>
+        <button class="bsz on" onclick="setSz('d',4,this)">4</button>
+        <button class="bsz" onclick="setSz('d',8,this)">8</button>
+      </div>
+      <div class="qrow">
+        <label>Fila de entrada:</label>
+        <div id="d-queue" style="display:flex;gap:4px;flex-wrap:wrap;align-items:center"></div>
+        <button class="bact" onclick="rndBits('d')" style="margin-left:5px">🎲</button>
+        <button class="bact" onclick="clrBits('d')">✕</button>
+      </div>
+      <div class="infobox">
+        <strong>FF Tipo D — borda de descida:</strong> a cada CLK↓ todos os FFs capturam simultaneamente o valor estável em D e propagam para Q. O bit do último FF é descartado. O cursor ▼ indica o próximo bit.
+      </div>
+    </div>
+    <div class="card">
+      <div class="ctit">⬛ Diagrama</div>
+      <div class="diagwrap" id="d-diag">
+        <svg id="d-svg" style="display:block;overflow:visible"></svg>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ctit">〜 Formas de Onda</div>
+      <div class="wfarea" id="d-wf"></div>
+    </div>
+  </div>
+  <div class="rc">
+    <div class="card">
+      <div class="ctit">⏱ Clock</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:11px">
+        <div class="cdot" id="d-dot"></div>
+        <span style="font-family:'Share Tech Mono',monospace;font-size:.73rem;color:var(--dim)">Pulso: <span id="d-cnt" style="color:var(--clk)">0</span></span>
+      </div>
+      <div class="mrow">
+        <button class="bmod on" id="d-bm" onclick="setMod('d','manual',this)">Manual</button>
+        <button class="bmod"    id="d-ba" onclick="setMod('d','auto',this)">Auto</button>
+      </div>
+      <div class="sprow" id="d-sprow" style="display:none">
+        <label>Veloc.:</label>
+        <input type="range" id="d-sp" min="600" max="3000" value="1200" step="100" oninput="updSp('d')">
+        <span class="spv" id="d-spv">1200ms</span>
+      </div>
+      <button class="bclk" id="d-bclk" onclick="doClk('d')">CLK ↓ Pulso</button>
+      <button class="brst" onclick="rstAll('d')">↺ Reiniciar</button>
+    </div>
+    <div class="card">
+      <div class="ctit">📋 Tabela de Estados</div>
+      <table class="sttbl"><thead><tr id="d-th"></tr></thead><tbody id="d-tb"></tbody></table>
+    </div>
+    <div class="card">
+      <div class="ctit">ℹ Princípio FF-D</div>
+      <div style="font-size:.72rem;line-height:1.68;color:var(--dim)">
+        <p>Na <strong style="color:var(--clk)">borda de descida</strong> do CLK, cada FF-D copia o valor estável em <strong style="color:var(--dat)">D</strong> para <strong style="color:var(--out)">Q</strong> — todos simultaneamente.</p><br>
+        <p>Como D<sub>i</sub> = Q<sub>i−1</sub>, o dado avança <em>um estágio por pulso</em>. O bit no último FF é descartado. Após <em>n</em> pulsos o registrador está preenchido.</p>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- TAB JK -->
+<div class="tc" id="tab-jk">
+<div class="pg">
+  <div class="lc">
+    <div class="card">
+      <div class="ctit">⚙ Configuração</div>
+      <div style="display:flex;align-items:center;gap:7px;margin-bottom:9px;flex-wrap:wrap">
+        <label style="font-size:.73rem;color:var(--dim)">Bits:</label>
+        <button class="bsz" onclick="setSz('jk',2,this)">2</button>
+        <button class="bsz on" onclick="setSz('jk',4,this)">4</button>
+        <button class="bsz" onclick="setSz('jk',8,this)">8</button>
+      </div>
+      <div class="qrow">
+        <label>Fila de entrada:</label>
+        <div id="jk-queue" style="display:flex;gap:4px;flex-wrap:wrap;align-items:center"></div>
+        <button class="bact" onclick="rndBits('jk')" style="margin-left:5px">🎲</button>
+        <button class="bact" onclick="clrBits('jk')">✕</button>
+      </div>
+      <div class="infobox" style="border-left-color:var(--qbar)">
+        <strong style="color:var(--qbar)">FF Tipo JK — borda de descida:</strong> 1º FF: J=DADO, K=D̄ (inversor). Do 2º em diante: J=Q<sub>ant</sub>, K=Q̄<sub>ant</sub>. Último FF: Q̄ não conecta. Saída em Q.
+      </div>
+    </div>
+    <div class="card">
+      <div class="ctit">⬛ Diagrama</div>
+      <div class="diagwrap" id="jk-diag">
+        <svg id="jk-svg" style="display:block;overflow:visible"></svg>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ctit">〜 Formas de Onda</div>
+      <div class="wfarea" id="jk-wf"></div>
+    </div>
+  </div>
+  <div class="rc">
+    <div class="card">
+      <div class="ctit">⏱ Clock</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:11px">
+        <div class="cdot" id="jk-dot"></div>
+        <span style="font-family:'Share Tech Mono',monospace;font-size:.73rem;color:var(--dim)">Pulso: <span id="jk-cnt" style="color:var(--clk)">0</span></span>
+      </div>
+      <div class="mrow">
+        <button class="bmod on" id="jk-bm" onclick="setMod('jk','manual',this)">Manual</button>
+        <button class="bmod"    id="jk-ba" onclick="setMod('jk','auto',this)">Auto</button>
+      </div>
+      <div class="sprow" id="jk-sprow" style="display:none">
+        <label>Veloc.:</label>
+        <input type="range" id="jk-sp" min="600" max="3000" value="1200" step="100" oninput="updSp('jk')">
+        <span class="spv" id="jk-spv">1200ms</span>
+      </div>
+      <button class="bclk" id="jk-bclk" onclick="doClk('jk')">CLK ↓ Pulso</button>
+      <button class="brst" onclick="rstAll('jk')">↺ Reiniciar</button>
+    </div>
+    <div class="card">
+      <div class="ctit">📋 Tabela de Estados</div>
+      <table class="sttbl"><thead><tr id="jk-th"></tr></thead><tbody id="jk-tb"></tbody></table>
+    </div>
+    <div class="card">
+      <div class="ctit">ℹ Princípio FF-JK</div>
+      <table style="width:100%;border-collapse:collapse;font-family:'Share Tech Mono',monospace;font-size:.66rem;margin-bottom:7px">
+        <tr><th style="border:1px solid var(--bord);padding:3px 4px;color:var(--qbar)">J</th><th style="border:1px solid var(--bord);padding:3px 4px;color:var(--qbar)">K</th><th style="border:1px solid var(--bord);padding:3px 4px;color:var(--qbar)">Q+</th><th style="border:1px solid var(--bord);padding:3px 4px;color:var(--qbar)">Ação</th></tr>
+        <tr><td style="border:1px solid var(--bord);padding:3px 4px;text-align:center;color:var(--dim)">0</td><td style="border:1px solid var(--bord);padding:3px 4px;text-align:center;color:var(--dim)">0</td><td style="border:1px solid var(--bord);padding:3px 4px;text-align:center;color:var(--dim)">Q</td><td style="border:1px solid var(--bord);padding:3px 4px;color:var(--dim)">Mantém</td></tr>
+        <tr><td style="border:1px solid var(--bord);padding:3px 4px;text-align:center;color:#ff4455">0</td><td style="border:1px solid var(--bord);padding:3px 4px;text-align:center;color:#ff4455">1</td><td style="border:1px solid var(--bord);padding:3px 4px;text-align:center;color:#ff4455">0</td><td style="border:1px solid var(--bord);padding:3px 4px;color:#ff4455">Reset</td></tr>
+        <tr><td style="border:1px solid var(--bord);padding:3px 4px;text-align:center;color:var(--out)">1</td><td style="border:1px solid var(--bord);padding:3px 4px;text-align:center;color:var(--out)">0</td><td style="border:1px solid var(--bord);padding:3px 4px;text-align:center;color:var(--out)">1</td><td style="border:1px solid var(--bord);padding:3px 4px;color:var(--out)">Set</td></tr>
+        <tr><td style="border:1px solid var(--bord);padding:3px 4px;text-align:center;color:var(--qbar)">1</td><td style="border:1px solid var(--bord);padding:3px 4px;text-align:center;color:var(--qbar)">1</td><td style="border:1px solid var(--bord);padding:3px 4px;text-align:center;color:var(--qbar)">Q̄</td><td style="border:1px solid var(--bord);padding:3px 4px;color:var(--qbar)">Toggle</td></tr>
+      </table>
+      <div style="font-size:.71rem;line-height:1.6;color:var(--dim)">Com J=D e K=D̄: nunca J=K simultaneamente. Comporta-se como FF-D. Do 2º FF em diante, Q̄ do anterior fornece K diretamente.</div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+// COLORS
+// ═══════════════════════════════════════════════════
+const COLS=['#ff4466','#ffcc00','#00e5ff','#66ff44','#ff66cc','#ff9900','#44ccff','#aaff44',
+            '#ff6644','#eeff00','#00ffcc','#88ff55','#ff44aa','#ffaa00','#00aaff','#ccff44'];
+
+// ═══════════════════════════════════════════════════
+// SVG LAYOUT CONSTANTS
+// ═══════════════════════════════════════════════════
+// FF body dimensions
+const FFW = 90, FFH = 120;
+// Wire length between FFs
+const WIRE_LEN = 50;
+// Left margin before first FF (space for DADO_IN label + input wire)
+const LEFT_LABEL = 72;
+const LEFT_WIRE  = 56;
+// Top margin: space for output square above FF
+const SQ_SIZE = 18;
+const SQ_ABOVE = 30; // distance from FF top to square bottom
+const TOP_MARGIN = SQ_SIZE + SQ_ABOVE + 8;
+// CLK bus below FF
+const CLK_BELOW = 32;
+// Pin Y positions INSIDE the FF (relative to FF top)
+// D/J pin: upper third
+const D_PIN_Y  = 34;  // Y of D (or J) pin relative to FF top
+// Q pin: same row as D (same Y — they are on opposite sides)
+const Q_PIN_Y  = D_PIN_Y;
+// Qbar pin: lower area
+const QB_PIN_Y = 74;
+// CLK pin
+const CLK_PIN_Y = 99;
+// JK inverter width
+const INV_SPACE = 60;
+
+// ═══════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════
+const ST = {
+  d:  {sz:4, bits:[], regs:[], ptr:0, clkN:0, mode:'manual', timer:null, hist:[], busy:false},
+  jk: {sz:4, bits:[], regs:[], ptr:0, clkN:0, mode:'manual', timer:null, hist:[], busy:false}
+};
+
+function mkBits(t){
+  ST[t].bits = Array.from({length:16}, (_,i) => ({val:[1,0,1,1,0,1,0,0,1,1,0,1,0,0,1,1][i], ci:i}));
+}
+function emptyRegs(t){
+  ST[t].regs = Array.from({length:ST[t].sz}, () => ({val:0, ci:null}));
+}
+
+// ═══════════════════════════════════════════════════
+// QUEUE UI
+// ═══════════════════════════════════════════════════
+function bldQ(t){
+  const s=ST[t], c=document.getElementById(`${t}-queue`);
+  c.innerHTML='';
+  s.bits.forEach((b,i)=>{
+    const el=document.createElement('div');
+    el.className='bbit'+(i===s.ptr?' ptr':'');
+    el.textContent=b.val;
+    el.style.color=COLS[b.ci];
+    el.style.borderColor=b.val?COLS[b.ci]:'var(--bord)';
+    el.onclick=()=>{s.bits[i].val^=1; bldQ(t);};
+    c.appendChild(el);
+  });
+}
+function rndBits(t){ST[t].bits=Array.from({length:16},(_,i)=>({val:Math.random()>.5?1:0,ci:i}));bldQ(t);}
+function clrBits(t){ST[t].bits=Array.from({length:16},(_,i)=>({val:0,ci:i}));bldQ(t);}
+
+// ═══════════════════════════════════════════════════
+// SIZE
+// ═══════════════════════════════════════════════════
+function setSz(t,n,btn){
+  ST[t].sz=n; emptyRegs(t); ST[t].hist=[];
+  btn.closest('div').querySelectorAll('.bsz').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  bldDiag(t); bldTHead(t); renderWF(t);
+}
+
+// ═══════════════════════════════════════════════════
+// DIAGRAM — pure SVG, no DOM elements inside
+// ═══════════════════════════════════════════════════
+// Returns left-edge X of FF i
+function getFFX(t, i){
+  const jkExtra = t==='jk' ? INV_SPACE : 0;
+  return LEFT_LABEL + LEFT_WIRE + jkExtra + i*(FFW + WIRE_LEN);
+}
+
+function bldDiag(t){
+  const s=ST[t], n=s.sz;
+  const svg=document.getElementById(`${t}-svg`);
+
+  const jkExtra = t==='jk' ? INV_SPACE : 0;
+  const W = LEFT_LABEL + LEFT_WIRE + jkExtra + n*FFW + (n-1)*WIRE_LEN + WIRE_LEN + 20;
+  const H = TOP_MARGIN + FFH + CLK_BELOW + 20;
+  svg.setAttribute('width',W);
+  svg.setAttribute('height',H);
+  svg.innerHTML='';
+
+  const ns='http://www.w3.org/2000/svg';
+  const mk=(tag,a)=>{const e=document.createElementNS(ns,tag);Object.entries(a).forEach(([k,v])=>e.setAttribute(k,v));return e;};
+  const add=(p,tag,a)=>{const e=mk(tag,a);p.appendChild(e);return e;};
+  const addTxt=(p,str,a)=>{const e=add(p,'text',a);e.textContent=str;return e;};
+  const addLine=(p,x1,y1,x2,y2,a={})=>add(p,'line',{x1,y1,x2,y2,...a});
+  const addRect=(p,x,y,w,h,a={})=>add(p,'rect',{x,y,width:w,height:h,...a});
+  const addCirc=(p,cx,cy,r,a={})=>add(p,'circle',{cx,cy,r,...a});
+
+  const FFY = TOP_MARGIN; // FF top Y
+  const busY = FFY + FFH + CLK_BELOW; // CLK bus Y
+
+  // ─── DADO_IN label + input wire
+  const dinY = FFY + D_PIN_Y; // Y of data line
+  addTxt(svg,'DADO_IN',{x:2, y:dinY+4, 'font-family':'Orbitron,monospace','font-size':'7.5',fill:'#ff7030','letter-spacing':'0.3'});
+
+  if(t==='d'){
+    // straight wire from label to FF0
+    addLine(svg, LEFT_LABEL, dinY, getFFX(t,0), dinY,
+      {stroke:'#ff7030','stroke-width':'1.8', id:`${t}-wIN`});
+  } else {
+    // JK: wire to junction, then to J; and branch down through inverter to K
+    const juncX = LEFT_LABEL + LEFT_WIRE;
+    const ff0X  = getFFX(t,0);
+    const kY    = FFY + QB_PIN_Y;
+
+    // main data wire left→junction
+    addLine(svg, LEFT_LABEL, dinY, juncX, dinY, {stroke:'#ff7030','stroke-width':'1.8'});
+    // junction to J of FF0
+    addLine(svg, juncX, dinY, ff0X, dinY, {stroke:'#ff7030','stroke-width':'1.8', id:`${t}-wIN`});
+    // junction dot
+    addCirc(svg, juncX, dinY, 3, {fill:'#ff7030'});
+    // branch down from junction to inverter input
+    addLine(svg, juncX, dinY, juncX, kY, {stroke:'#ff7030','stroke-width':'1.3','stroke-dasharray':'3,2'});
+    // horizontal to inverter
+    const invX = juncX + 8;
+    addLine(svg, juncX, kY, invX, kY, {stroke:'#ff7030','stroke-width':'1.3'});
+    // inverter triangle
+    add(svg,'polygon',{points:`${invX},${kY-7} ${invX+13},${kY} ${invX},${kY+7}`,fill:'none',stroke:'#cc55ff','stroke-width':'1.4'});
+    // inverter bubble
+    addCirc(svg, invX+16, kY, 3.5, {fill:'none',stroke:'#cc55ff','stroke-width':'1.4'});
+    addTxt(svg,'INV',{x:invX+1,y:kY+17,'font-family':'Share Tech Mono,monospace','font-size':'7',fill:'#cc55ff'});
+    // inverter out → K of FF0
+    addLine(svg, invX+20, kY, ff0X, kY, {stroke:'#cc55ff','stroke-width':'1.3'});
+  }
+
+  // ─── CLK label + bus horizontal line
+  addTxt(svg,'CLK',{x:2, y:busY+4,'font-family':'Orbitron,monospace','font-size':'7.5',fill:'#00d4ff','letter-spacing':'0.3'});
+  const busX0 = LEFT_LABEL - 4;  // bus starts at label area
+  const busX1 = getFFX(t,n-1) + FFW - 10;
+  addLine(svg, busX0, busY, busX1, busY, {stroke:'#00d4ff','stroke-width':'1.8', id:`${t}-busH`, opacity:'0.35'});
+
+  // ─── Each FF
+  for(let i=0;i<n;i++){
+    const FX = getFFX(t,i);
+    const FY = FFY;
+    const g  = add(svg,'g',{id:`${t}-ff-${i}`});
+
+    // FF body rect
+    addRect(g, FX, FY, FFW, FFH, {rx:'5',fill:'#060d18',stroke:'#1a3050','stroke-width':'1.6', id:`${t}-ffr-${i}`});
+
+    // FF type label
+    addTxt(g, t==='d'?'FF-D':'FF-JK', {x:FX+FFW/2, y:FY+12,'text-anchor':'middle',
+      'font-family':'Orbitron,monospace','font-size':'7',fill:'#253a55','letter-spacing':'0.8'});
+
+    // ── D or J label (left pin)
+    addTxt(g, t==='d'?'D':'J', {x:FX+7, y:FY+D_PIN_Y+4,
+      'font-family':'Share Tech Mono,monospace','font-size':'12',fill:t==='d'?'#ff7030':'#30ff80'});
+
+    // ── Q label (right side, same Y as D)
+    addTxt(g, 'Q', {x:FX+FFW-18, y:FY+Q_PIN_Y+4,
+      'font-family':'Share Tech Mono,monospace','font-size':'12',fill:'#30ff80'});
+
+    // Q value display box (inside FF, right area)
+    const qBoxX = FX+FFW-36, qBoxY = FY+Q_PIN_Y-9;
+    addRect(svg, qBoxX, qBoxY, 16, 16, {rx:'2',fill:'#050e18',stroke:'#1a3050', id:`${t}-qbox-${i}`});
+    addTxt(svg, '0', {x:qBoxX+8, y:qBoxY+11,'text-anchor':'middle',
+      'font-family':'Share Tech Mono,monospace','font-size':'10',fill:'#3a5570', id:`${t}-qval-${i}`});
+
+    // Q̄ value display box (same X, at QB_PIN_Y)
+    const qbBoxX = FX+FFW-36, qbBoxY = FY+QB_PIN_Y-9;
+    addRect(svg, qbBoxX, qbBoxY, 16, 16, {rx:'2',fill:'#050e18',stroke:'#440060', id:`${t}-qbbox-${i}`});
+    addTxt(svg, '1', {x:qbBoxX+8, y:qbBoxY+11,'text-anchor':'middle',
+      'font-family':'Share Tech Mono,monospace','font-size':'10',fill:'#3a5570', id:`${t}-qbval-${i}`});
+
+    // ── Q wire: exits FF right edge at Q_PIN_Y, goes right
+    const qWireY = FY + Q_PIN_Y;
+    const qExitX = FX + FFW; // right edge of FF
+
+    // Vertical wire from Q pin UP to output square
+    const sqCX   = FX + FFW - 28; // center X of Q pin area
+    const sqBotY = FY - SQ_ABOVE;
+    const sqTopY = sqBotY - SQ_SIZE;
+    addLine(svg, sqCX, FY+Q_PIN_Y-9, sqCX, sqBotY,
+      {stroke:'#30ff80','stroke-width':'1.5', id:`${t}-qup-${i}`});
+    // output square
+    addRect(svg, sqCX-SQ_SIZE/2, sqTopY, SQ_SIZE, SQ_SIZE,
+      {rx:'2',fill:'#060d18',stroke:'#30ff80','stroke-width':'1.5', id:`${t}-sq-${i}`});
+    // label in square
+    const ltr = String.fromCharCode(65 + n-1-i); // A=rightmost
+    addTxt(svg, 'Q'+ltr, {x:sqCX, y:sqTopY+SQ_SIZE/2+3.5,'text-anchor':'middle',
+      'font-family':'Share Tech Mono,monospace','font-size':'7',fill:'#30ff80'});
+
+    // ── Qbar label (right side, QB_PIN_Y)
+    addTxt(g, 'Q̄', {x:FX+FFW-18, y:FY+QB_PIN_Y+4,
+      'font-family':'Share Tech Mono,monospace','font-size':'11',fill:'#cc55ff',
+      id:`${t}-qblbl-${i}`});
+    // Qbar stub — exits right but NOT connected (dashed, faded)
+    // For JK non-last: will be replaced by solid wire to K of next FF
+    addLine(svg, FX+FFW, FY+QB_PIN_Y, FX+FFW+16, FY+QB_PIN_Y,
+      {stroke:'#cc55ff','stroke-width':'1.2','stroke-dasharray':'2,3',opacity:'0.4', id:`${t}-qbstub-${i}`});
+
+    // ── K label (JK only, left side at QB_PIN_Y)
+    if(t==='jk'){
+      addTxt(g, 'K', {x:FX+7, y:FY+QB_PIN_Y+4,
+        'font-family':'Share Tech Mono,monospace','font-size':'12',fill:'#cc55ff',
+        id:`${t}-klbl-${i}`});
+    }
+
+    // ── CLK symbol: ——○▷ CLK
+    // Bubble is OUTSIDE the FF (to the left of FX), triangle is INSIDE.
+    // FF left border (FX) passes between bubble and triangle.
+    const clkY  = FY + CLK_PIN_Y;
+    const bubR  = 4;
+    const bubCX = FX - bubR - 1;   // bubble fully outside FF, right edge touches FX
+    const triX0 = FX + 1;          // triangle base just inside FF left border
+    const triH  = 7;
+    const triTip= triX0 + 14;
+    const entryX= bubCX - 20;      // where horizontal wire starts (also CLK bus drop)
+    // horizontal wire from entry to left edge of bubble
+    addLine(svg, entryX, clkY, bubCX - bubR, clkY,
+      {stroke:'#00d4ff','stroke-width':'1.5'});
+    // bubble — fully outside FF
+    addCirc(svg, bubCX, clkY, bubR,
+      {fill:'#060d18', stroke:'#00d4ff','stroke-width':'1.4'});
+    // triangle — fully inside FF
+    add(g,'polygon',{
+      points:`${triX0},${clkY-triH} ${triTip},${clkY} ${triX0},${clkY+triH}`,
+      fill:'none', stroke:'#00d4ff','stroke-width':'1.4'});
+    // CLK label
+    addTxt(g, 'CLK', {x:triTip+4, y:clkY+4,
+      'font-family':'Share Tech Mono,monospace','font-size':'8', fill:'#00d4ff'});
+    // vertical drop from entryX down to CLK bus
+    addLine(svg, entryX, clkY, entryX, busY,
+      {stroke:'#00d4ff','stroke-width':'1.5', id:`${t}-busV-${i}`, opacity:'0.35'});
+  }
+
+  // ─── Inter-FF wires
+  for(let i=0;i<n-1;i++){
+    const FX  = getFFX(t,i);
+    const NX  = getFFX(t,i+1);
+    const qY  = FFY + Q_PIN_Y;
+    const qbY = FFY + QB_PIN_Y;
+
+    // Q of FF[i] → D/J of FF[i+1]  (horizontal at qY)
+    addLine(svg, FX+FFW, qY, NX, qY,
+      {stroke:'#30ff80','stroke-width':'1.8', id:`${t}-qw-${i}`});
+    // junction dot at FF[i] Q exit
+    addCirc(svg, FX+FFW, qY, 3, {fill:'#30ff80', id:`${t}-jdot-${i}`});
+
+    if(t==='jk'){
+      // Qbar of FF[i] → K of FF[i+1]
+      // hide the dashed stub for this FF
+      addLine(svg, FX+FFW, qbY, NX, qbY,
+        {stroke:'#cc55ff','stroke-width':'1.3', id:`${t}-qbw-${i}`});
+      addCirc(svg, FX+FFW, qbY, 2.2, {fill:'#cc55ff'});
+    }
+  }
+
+  // Hide qbstub for JK non-last FFs (solid wire drawn above covers them)
+  if(t==='jk'){
+    for(let i=0;i<n-1;i++){
+      const el=document.getElementById(`${t}-qbstub-${i}`);
+      if(el) el.setAttribute('opacity','0');
+    }
+  }
+
+  // Resize wrapper
+  document.getElementById(`${t}-diag`).style.minHeight=(H+8)+'px';
+  updateQDisp(t);
+}
+
+// ═══════════════════════════════════════════════════
+// UPDATE Q DISPLAY (colors follow bits)
+// ═══════════════════════════════════════════════════
+function updateQDisp(t){
+  const s=ST[t];
+  for(let i=0;i<s.sz;i++){
+    const r=s.regs[i];
+    const hasBit = r.ci!==null;
+    const col = hasBit ? COLS[r.ci] : '#2a3a50';
+
+    const qval = document.getElementById(`${t}-qval-${i}`);
+    const qbox = document.getElementById(`${t}-qbox-${i}`);
+    const qup  = document.getElementById(`${t}-qup-${i}`);
+    const sq   = document.getElementById(`${t}-sq-${i}`);
+
+    if(qval){ qval.textContent=r.val; qval.setAttribute('fill',col); }
+    if(qbox){ qbox.setAttribute('stroke',col); qbox.setAttribute('fill',r.val&&hasBit?'#002818':'#100508'); }
+    if(qup)  qup.setAttribute('stroke', hasBit?col:'#1a3050');
+    if(sq)   sq.setAttribute('stroke',  hasBit?col:'#1a3050');
+
+    // Q̄ box: inverted value, same color
+    const qbval = document.getElementById(`${t}-qbval-${i}`);
+    const qbbox = document.getElementById(`${t}-qbbox-${i}`);
+    const invV  = r.val^1;
+    if(qbval){ qbval.textContent=invV; qbval.setAttribute('fill',hasBit?col:'#3a5570'); }
+    if(qbbox){ qbbox.setAttribute('stroke',hasBit?col:'#440060'); qbbox.setAttribute('fill',invV&&hasBit?'#1a0028':'#100508'); }
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// CLOCK LOGIC
+// ═══════════════════════════════════════════════════
+function doClk(t){
+  const s=ST[t];
+  if(s.busy) return; // prevent double-fire during animation
+  s.busy=true;
+
+  // CLK flash
+  const dot=document.getElementById(`${t}-dot`);
+  const bclk=document.getElementById(`${t}-bclk`);
+  dot.classList.add('hi'); bclk.classList.add('pulse');
+  setTimeout(()=>{dot.classList.remove('hi');bclk.classList.remove('pulse');},220);
+
+  // Flash CLK bus
+  const busH=document.getElementById(`${t}-busH`);
+  if(busH){busH.setAttribute('opacity','1');setTimeout(()=>busH.setAttribute('opacity','0.35'),400);}
+  for(let i=0;i<s.sz;i++){
+    const bv=document.getElementById(`${t}-busV-${i}`);
+    const fr=document.getElementById(`${t}-ffr-${i}`);
+    if(bv){bv.setAttribute('opacity','1');setTimeout(()=>bv.setAttribute('opacity','0.35'),400);}
+    if(fr){
+      fr.setAttribute('stroke','#00d4ff');
+      fr.setAttribute('fill','#001f2e');
+      setTimeout(()=>{fr.setAttribute('stroke','#1a3050');fr.setAttribute('fill','#060d18');},400);
+    }
+  }
+
+  // ── Capture stable values BEFORE edge
+  const inBit = {val:s.bits[s.ptr%16].val, ci:s.bits[s.ptr%16].ci};
+  const old   = s.regs.map(r=>({val:r.val, ci:r.ci}));
+
+  // ── What each FF will output after clock:
+  //    FF[0] ← inBit
+  //    FF[i] ← old[i-1]
+  const next = [inBit, ...old.slice(0, s.sz-1)];
+
+  // ── ANIMATION: n simultaneous bubbles
+  //    Each bubble starts at source position and flies to destination Q box
+  //    Sources:
+  //      bubble[0]: comes from LEFT (input wire) → goes to FF0 Q box
+  //      bubble[i>0]: comes from FF[i-1] Q box   → goes to FF[i] Q box
+  //    The last FF's current value flies RIGHT and disappears (discarded)
+
+  const svgEl  = document.getElementById(`${t}-svg`);
+  const diagEl = document.getElementById(`${t}-diag`);
+
+  // Get screen rect of a Q-value element
+  function qRect(i){
+    return document.getElementById(`${t}-qval-${i}`).getBoundingClientRect();
+  }
+
+  // Source positions for each bubble
+  const sources = [];
+  // bubble[0]: starts at input wire start (left of diagram)
+  const svgR = svgEl.getBoundingClientRect();
+  sources.push({x: svgR.left + LEFT_LABEL - 30, y: svgR.top + TOP_MARGIN + Q_PIN_Y + 2});
+  // bubbles 1..n-1: start at FF[i-1] Q box center
+  for(let i=1;i<s.sz;i++){
+    const r=qRect(i-1);
+    sources.push({x:r.left+r.width/2-11, y:r.top+r.height/2-11});
+  }
+
+  // Destination: FF[i] Q box
+  const dests = [];
+  for(let i=0;i<s.sz;i++){
+    const r=qRect(i);
+    dests.push({x:r.left+r.width/2-11, y:r.top+r.height/2-11});
+  }
+
+  // Last FF discarded bubble: starts at FF[n-1] Q box, flies further right
+  const lastR = qRect(s.sz-1);
+  const discardSrc = {x:lastR.left+lastR.width/2-11, y:lastR.top+lastR.height/2-11};
+  const discardBit = old[s.sz-1]; // the value being discarded
+
+  const ANIM_MS = 320; // travel time
+
+  // ── Create all bubbles simultaneously
+  const bubblesEls = [];
+
+  // Main shifting bubbles (n bubbles, each going one stage right)
+  for(let i=0;i<s.sz;i++){
+    const nb = next[i];
+    if(nb.ci===null) continue; // nothing to animate for empty slots
+    const bub=document.createElement('div');
+    bub.className='bub';
+    bub.textContent=nb.val;
+    bub.style.background=COLS[nb.ci];
+    bub.style.left=sources[i].x+'px';
+    bub.style.top=sources[i].y+'px';
+    bub.style.transition=`left ${ANIM_MS}ms cubic-bezier(.4,0,.2,1), top ${ANIM_MS}ms cubic-bezier(.4,0,.2,1)`;
+    document.body.appendChild(bub);
+    bubblesEls.push(bub);
+
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      bub.style.left=dests[i].x+'px';
+      bub.style.top=dests[i].y+'px';
+    }));
+  }
+
+  // Discard bubble: flies from FF[n-1] further right off screen
+  if(discardBit.ci!==null){
+    const db=document.createElement('div');
+    db.className='bub';
+    db.textContent=discardBit.val;
+    db.style.background=COLS[discardBit.ci];
+    db.style.left=discardSrc.x+'px';
+    db.style.top=discardSrc.y+'px';
+    db.style.transition=`left ${ANIM_MS}ms cubic-bezier(.4,0,.2,1), top ${ANIM_MS}ms cubic-bezier(.4,0,.2,1), opacity 200ms ease ${ANIM_MS+100}ms`;
+    document.body.appendChild(db);
+    bubblesEls.push(db);
+
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      db.style.left=(discardSrc.x+80)+'px';
+      db.style.top=(discardSrc.y-30)+'px';
+      // fade + shrink to indicate discard
+      db.style.opacity='0';
+      db.style.transform='scale(0.2)';
+      db.style.transition=`left ${ANIM_MS}ms cubic-bezier(.4,0,.2,1), top ${ANIM_MS}ms, opacity 250ms ease ${ANIM_MS}ms, transform 250ms ease ${ANIM_MS}ms`;
+    }));
+  }
+
+  // ── JK ONLY: Q̄ → K bubbles (inverted value, same color, dashed outline)
+  // For FF[0]:  inverter → K[0]   (source = inverter output, value = inBit inverted)
+  // For FF[i>0]: Q̄[i-1] → K[i]   (source = Q̄ label of FF[i-1], value = old[i-1] inverted)
+  // FF[n-1]: Q̄ does NOT connect — no bubble
+  if(t==='jk'){
+    const svgR2 = svgEl.getBoundingClientRect();
+    const juncX2 = LEFT_LABEL + LEFT_WIRE;
+
+    for(let i=0;i<s.sz;i++){
+      // Which bit is being inverted to reach K[i]?
+      const srcBit = (i===0) ? inBit : old[i-1];
+      if(srcBit.ci===null) continue;
+
+      const invVal = srcBit.val ^ 1;
+      const col    = COLS[srcBit.ci];
+
+      // Source: Q̄ value box of FF[i-1] (or input wire area for i=0)
+      let sx, sy;
+      if(i===0){
+        // For FF[0]: the inverted bit comes from the inverter (JK) or input (D)
+        // Use a position just left of the diagram at QB_PIN_Y height
+        sx = svgR2.left + LEFT_LABEL - 30;
+        sy = svgR2.top  + TOP_MARGIN + QB_PIN_Y + 2;
+      } else {
+        // Source = Q̄ value box of FF[i-1]
+        const qbvEl = document.getElementById(`${t}-qbval-${i-1}`);
+        if(!qbvEl) continue;
+        const qbvR = qbvEl.getBoundingClientRect();
+        sx = qbvR.left + qbvR.width/2 - 11;
+        sy = qbvR.top  + qbvR.height/2 - 11;
+      }
+
+      // Destination: K label of FF[i]
+      const kEl = document.getElementById(`${t}-klbl-${i}`);
+      if(!kEl) continue;
+      const kR  = kEl.getBoundingClientRect();
+      const dx  = kR.left + kR.width/2 - 11;
+      const dy  = kR.top  + kR.height/2 - 11;
+
+      const kb = document.createElement('div');
+      kb.className = 'bub';
+      kb.textContent = invVal;
+      kb.style.background = col;
+      kb.style.outline = '2px dashed #fff';
+      kb.style.outlineOffset = '-3px';
+      kb.style.opacity = '0.85';
+      kb.style.left = sx+'px';
+      kb.style.top  = sy+'px';
+      kb.style.transition = `left ${ANIM_MS}ms cubic-bezier(.4,0,.2,1), top ${ANIM_MS}ms cubic-bezier(.4,0,.2,1)`;
+      document.body.appendChild(kb);
+      bubblesEls.push(kb);
+
+      requestAnimationFrame(()=>requestAnimationFrame(()=>{
+        kb.style.left = dx+'px';
+        kb.style.top  = dy+'px';
+      }));
+    }
+  }
+
+  // After animation: update state and remove bubbles
+  const SETTLE = ANIM_MS + 300;
+  setTimeout(()=>{
+    // Apply new state
+    s.regs[0] = {val:inBit.val, ci:inBit.ci};
+    for(let i=1;i<s.sz;i++) s.regs[i]={val:old[i-1].val, ci:old[i-1].ci};
+
+    // Advance queue
+    s.ptr=(s.ptr+1)%16;
+    s.clkN++;
+    document.getElementById(`${t}-cnt`).textContent=s.clkN;
+    bldQ(t);
+
+    // Remove bubbles
+    bubblesEls.forEach(b=>b.remove());
+
+    // Update display
+    updateQDisp(t);
+    recHist(t, inBit, old);
+    renderWF(t);
+    updTable(t);
+    s.busy=false;
+  }, SETTLE);
+}
+
+// ═══════════════════════════════════════════════════
+// WAVEFORM
+// ═══════════════════════════════════════════════════
+function recHist(t, inBit, oldRegs){
+  const s=ST[t];
+  s.hist.push({clk:s.clkN, in:{...inBit}, regs:s.regs.map(r=>({...r}))});
+  if(s.hist.length>20) s.hist.shift();
+}
+function renderWF(t){
+  const s=ST[t], el=document.getElementById(`${t}-wf`), h=s.hist;
+  if(!h.length){el.innerHTML='<div style="color:var(--dim);font-size:.7rem;padding:7px">Aguardando pulsos…</div>';return;}
+  const SW=36, W=h.length*SW+8;
+  const sigs=['CLK','DIN',...Array.from({length:s.sz},(_,i)=>`Q${String.fromCharCode(65+i)}`)];
+  let html='';
+  sigs.forEach(sig=>{
+    html+=`<div class="wfrow"><div class="wflbl">${sig}</div><div style="flex:1;min-width:${W}px"><svg width="${W}" height="22" style="overflow:visible">`;
+    for(let i=0;i<h.length;i++){
+      const e=h[i];
+      let v,col;
+      if(sig==='CLK'){v=1;col='#00d4ff';}
+      else if(sig==='DIN'){v=e.in.val;col=e.in.ci!==null?COLS[e.in.ci]:'#ff7030';}
+      else{const ri=sig.charCodeAt(1)-65;const reg=e.regs[ri];v=reg?reg.val:0;col=reg&&reg.ci!==null?COLS[reg.ci]:'#3a5570';}
+      const x=i*SW, y=v?3:16;
+      if(sig==='CLK'){
+        html+=`<polyline points="${x},19 ${x},3 ${x+18},3 ${x+18},19 ${x+SW},19" fill="none" stroke="${col}" stroke-width="1.5"/>`;
+      } else {
+        if(i===0){
+          html+=`<line x1="${x}" y1="${y}" x2="${x+SW}" y2="${y}" stroke="${col}" stroke-width="2"/>`;
+        } else {
+          const pe=h[i-1];
+          let pv;
+          if(sig==='DIN') pv=pe.in.val;
+          else{const ri=sig.charCodeAt(1)-65;const pr=pe.regs[ri];pv=pr?pr.val:0;}
+          const py=pv?3:16;
+          if(py!==y) html+=`<line x1="${x}" y1="${py}" x2="${x}" y2="${y}" stroke="${col}" stroke-width="2"/>`;
+          html+=`<line x1="${x}" y1="${y}" x2="${x+SW}" y2="${y}" stroke="${col}" stroke-width="2"/>`;
+        }
+      }
+    }
+    html+=`</svg></div></div>`;
+  });
+  el.innerHTML=html;
+}
+
+// ═══════════════════════════════════════════════════
+// TABLE
+// ═══════════════════════════════════════════════════
+function bldTHead(t){
+  const s=ST[t];
+  document.getElementById(`${t}-th`).innerHTML=
+    '<th>CLK</th><th>DIN</th>'+
+    Array.from({length:s.sz},(_,i)=>`<th>Q${String.fromCharCode(65+i)}</th>`).join('');
+  document.getElementById(`${t}-tb`).innerHTML='';
+}
+function updTable(t){
+  const s=ST[t], tb=document.getElementById(`${t}-tb`), rows=s.hist.slice(-8);
+  tb.innerHTML=rows.map((r,i)=>{
+    const cur=i===rows.length-1;
+    const ic=r.in.ci!==null?COLS[r.in.ci]:'#ff7030';
+    const cells=r.regs.map(reg=>{
+      const rc=reg&&reg.ci!==null?COLS[reg.ci]:'#3a5570';
+      return `<td style="color:${rc};font-weight:bold">${reg?reg.val:0}</td>`;
+    }).join('');
+    return `<tr class="${cur?'cur':''}"><td>${r.clk}</td><td style="color:${ic};font-weight:bold">${r.in.val}</td>${cells}</tr>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════
+// MODE / SPEED / RESET
+// ═══════════════════════════════════════════════════
+function setMod(t,mode,btn){
+  const s=ST[t];
+  if(s.timer){clearInterval(s.timer);s.timer=null;}
+  s.mode=mode;
+  btn.closest('.mrow').querySelectorAll('.bmod').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  const sp=document.getElementById(`${t}-sprow`), bclk=document.getElementById(`${t}-bclk`);
+  if(mode==='auto'){
+    sp.style.display='flex';
+    bclk.textContent='⏹ Parar';
+    bclk.onclick=()=>stopAuto(t);
+    const ms=parseInt(document.getElementById(`${t}-sp`).value);
+    s.timer=setInterval(()=>doClk(t),ms);
+  } else {
+    sp.style.display='none';
+    bclk.textContent='CLK ↓ Pulso';
+    bclk.onclick=()=>doClk(t);
+  }
+}
+function stopAuto(t){
+  const s=ST[t];
+  if(s.timer){clearInterval(s.timer);s.timer=null;}
+  s.mode='manual';
+  document.getElementById(`${t}-bm`).classList.add('on');
+  document.getElementById(`${t}-ba`).classList.remove('on');
+  document.getElementById(`${t}-sprow`).style.display='none';
+  const b=document.getElementById(`${t}-bclk`);
+  b.textContent='CLK ↓ Pulso';b.onclick=()=>doClk(t);
+}
+function updSp(t){
+  const ms=parseInt(document.getElementById(`${t}-sp`).value);
+  document.getElementById(`${t}-spv`).textContent=ms+'ms';
+  const s=ST[t];
+  if(s.mode==='auto'&&s.timer){clearInterval(s.timer);s.timer=setInterval(()=>doClk(t),ms);}
+}
+function rstAll(t){
+  const s=ST[t];
+  if(s.timer){clearInterval(s.timer);s.timer=null;}
+  emptyRegs(t); s.clkN=0; s.ptr=0; s.hist=[]; s.mode='manual'; s.busy=false;
+  document.getElementById(`${t}-cnt`).textContent='0';
+  document.getElementById(`${t}-dot`).classList.remove('hi');
+  document.getElementById(`${t}-bm`).classList.add('on');
+  document.getElementById(`${t}-ba`).classList.remove('on');
+  document.getElementById(`${t}-sprow`).style.display='none';
+  const b=document.getElementById(`${t}-bclk`);
+  b.textContent='CLK ↓ Pulso'; b.onclick=()=>doClk(t);
+  bldQ(t); updateQDisp(t); renderWF(t);
+  document.getElementById(`${t}-tb`).innerHTML='';
+}
+function swTab(t){
+  document.querySelectorAll('.tc').forEach(e=>e.classList.remove('on'));
+  document.querySelectorAll('.tbtn').forEach(e=>e.classList.remove('on'));
+  document.getElementById(`tab-${t}`).classList.add('on');
+  document.getElementById(`tbn-${t}`).classList.add('on');
+}
+
+// ═══════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════
+['d','jk'].forEach(t=>{
+  mkBits(t); emptyRegs(t); bldQ(t); bldDiag(t); bldTHead(t); renderWF(t);
+});
+</script>
+</body>
+</html>
