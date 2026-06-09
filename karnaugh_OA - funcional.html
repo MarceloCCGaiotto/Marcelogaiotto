@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mapa de Karnaugh — Objeto de Aprendizagem</title>
+<style>
+:root {
+  --bg: #0e1117;
+  --bg2: #161b22;
+  --bg3: #1c2333;
+  --border: #30363d;
+  --border2: #444c56;
+  --text: #e6edf3;
+  --text2: #8b949e;
+  --text3: #58a6ff;
+  --accent: #238636;
+  --accent2: #1f6feb;
+  --danger: #da3633;
+  --warn: #d29922;
+  --font: 'Consolas', 'Cascadia Code', 'Courier New', monospace;
+  --sans: 'Segoe UI', system-ui, sans-serif;
+  --radius: 6px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  min-height: 100vh;
+}
+header {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 1rem 2rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+header h1 {
+  font-family: var(--font);
+  font-size: 1.1rem;
+  color: var(--text3);
+  letter-spacing: 0.05em;
+}
+header .badge {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 2px 10px;
+  font-size: 0.72rem;
+  color: var(--text2);
+  font-family: var(--font);
+}
+.main {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 0;
+  min-height: calc(100vh - 53px);
+}
+.panel {
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  padding: 1.5rem 1.25rem;
+  overflow-y: auto;
+}
+.content {
+  padding: 1.5rem 2rem;
+  overflow-y: auto;
+}
+.section-title {
+  font-size: 0.7rem;
+  font-family: var(--font);
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border);
+}
+.ctrl-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 1.25rem;
+}
+.ctrl-label { font-size: 0.8rem; color: var(--text2); }
+.btn-group {
+  display: flex;
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.btn-group button {
+  flex: 1;
+  background: var(--bg3);
+  border: none;
+  color: var(--text2);
+  padding: 6px 0;
+  font-size: 0.82rem;
+  cursor: pointer;
+  font-family: var(--sans);
+  border-right: 1px solid var(--border2);
+  transition: background 0.15s, color 0.15s;
+}
+.btn-group button:last-child { border-right: none; }
+.btn-group button.active { background: var(--accent2); color: #fff; font-weight: 600; }
+.btn-group button:hover:not(.active) { background: var(--bg); color: var(--text); }
+.mode-group button.active.pos { background: var(--danger); }
+
+.var-names { display: flex; gap: 6px; margin-bottom: 1.25rem; }
+.var-names input {
+  width: 44px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 5px 4px;
+}
+.var-names input:focus { outline: none; border-color: var(--accent2); }
+
+.truth-table-wrap { overflow-x: auto; }
+table.tt {
+  border-collapse: collapse;
+  width: 100%;
+  font-family: var(--font);
+  font-size: 0.82rem;
+}
+table.tt th {
+  background: var(--bg3);
+  color: var(--text2);
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  text-align: center;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+}
+table.tt td {
+  border: 1px solid var(--border);
+  text-align: center;
+  padding: 3px 6px;
+  font-size: 0.8rem;
+  color: var(--text2);
+}
+table.tt td.minterm-cell {
+  background: var(--bg3);
+  cursor: pointer;
+  color: var(--text);
+  font-weight: 600;
+  font-size: 0.85rem;
+  user-select: none;
+  transition: background 0.12s;
+  min-width: 36px;
+}
+table.tt td.minterm-cell:hover { background: var(--bg); }
+table.tt td.v1 { color: #58a6ff; }
+table.tt td.vx { color: var(--warn); }
+
+.fill-row { display: flex; gap: 6px; margin-bottom: 1rem; flex-wrap: wrap; }
+.fill-row button {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text2);
+  font-size: 0.75rem;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-family: var(--sans);
+  transition: background 0.12s, color 0.12s;
+}
+.fill-row button:hover { background: var(--bg); color: var(--text); }
+
+.kmap-outer {
+  display: inline-block;
+  position: relative;
+}
+table.kmap { border-collapse: collapse; }
+table.kmap th {
+  background: transparent;
+  color: var(--text2);
+  font-family: var(--font);
+  font-size: 0.75rem;
+  padding: 4px 10px;
+  text-align: center;
+  border: none;
+}
+table.kmap th.row-header { text-align: right; padding-right: 8px; white-space: nowrap; }
+.kmap-cell {
+  width: 62px;
+  height: 54px;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  text-align: center;
+  vertical-align: middle;
+  cursor: pointer;
+  position: relative;
+  user-select: none;
+  transition: background 0.12s;
+}
+.kmap-cell:hover { background: var(--bg); }
+.kmap-cell .cell-val {
+  font-family: var(--font);
+  font-size: 1rem;
+  font-weight: 700;
+  position: relative;
+  z-index: 2;
+  pointer-events: none;
+}
+.kmap-cell .cell-val.v0 { color: var(--text2); }
+.kmap-cell .cell-val.v1 { color: #58a6ff; }
+.kmap-cell .cell-val.vx { color: var(--warn); }
+.kmap-cell .cell-idx {
+  position: absolute;
+  top: 3px;
+  left: 4px;
+  font-size: 0.6rem;
+  color: var(--border2);
+  font-family: var(--font);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* SVG bubble overlay */
+.kmap-svg-overlay {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  overflow: visible;
+  z-index: 10;
+}
+
+.groups-section { margin-top: 2rem; }
+.group-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 0.82rem;
+  font-family: var(--font);
+}
+.group-swatch { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
+
+.result-box {
+  margin-top: 1.5rem;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+}
+.result-box .res-label {
+  font-size: 0.72rem;
+  color: var(--text2);
+  font-family: var(--font);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.5rem;
+}
+.result-box .res-expr {
+  font-family: var(--font);
+  font-size: 1.15rem;
+  color: #f0a050;
+  letter-spacing: 0.04em;
+  word-break: break-all;
+}
+.result-box .res-expr.pos-color { color: #a0d0ff; }
+
+.info-box {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+  font-size: 0.78rem;
+  color: var(--text2);
+  line-height: 1.6;
+  margin-bottom: 1.25rem;
+}
+.info-box strong { color: var(--text); }
+
+.kmap-legend {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 1rem;
+  font-size: 0.75rem;
+  color: var(--text2);
+  flex-wrap: wrap;
+  align-items: center;
+}
+.kmap-legend span { display: flex; align-items: center; gap: 4px; }
+.leg-dot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+
+.action-btn {
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  color: var(--text);
+  padding: 7px 16px;
+  font-size: 0.82rem;
+  cursor: pointer;
+  font-family: var(--sans);
+  transition: background 0.12s;
+  margin-right: 6px;
+  margin-bottom: 6px;
+}
+.action-btn:hover { background: var(--bg); border-color: var(--text3); color: var(--text3); }
+.action-btn.primary { background: var(--accent2); border-color: var(--accent2); color: #fff; font-weight: 600; }
+.action-btn.primary:hover { background: #2979e6; }
+
+.step-indicator { display: flex; margin-bottom: 1.5rem; }
+.step {
+  flex: 1;
+  text-align: center;
+  padding: 8px 4px;
+  font-size: 0.72rem;
+  color: var(--text2);
+  border-bottom: 2px solid var(--border);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  user-select: none;
+}
+.step.active { color: var(--text3); border-bottom-color: var(--text3); font-weight: 600; }
+.step-content { display: none; }
+.step-content.active { display: block; }
+.kmap-wrap { overflow-x: auto; padding-bottom: 1rem; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Mapa de Karnaugh</h1>
+  <span class="badge">Objeto de Aprendizagem</span>
+</header>
+
+<div class="main">
+  <!-- PAINEL ESQUERDO -->
+  <div class="panel">
+    <div class="section-title">Configuração</div>
+
+    <div class="ctrl-row">
+      <span class="ctrl-label">Número de variáveis</span>
+      <div class="btn-group" id="nvar-btns">
+        <button onclick="setNVar(2)" id="nv2">2</button>
+        <button onclick="setNVar(3)" id="nv3">3</button>
+        <button onclick="setNVar(4)" id="nv4" class="active">4</button>
+      </div>
+    </div>
+
+    <div class="ctrl-row">
+      <span class="ctrl-label">Nomes das variáveis</span>
+      <div class="var-names" id="var-names-row"></div>
+    </div>
+
+    <div class="ctrl-row">
+      <span class="ctrl-label">Modo de minimização</span>
+      <div class="btn-group mode-group" id="mode-btns">
+        <button onclick="setMode('sop')" id="m-sop" class="active">SOP — Σ (1s)</button>
+        <button onclick="setMode('pos')" id="m-pos">POS — Π (0s)</button>
+      </div>
+    </div>
+
+    <div class="info-box" id="mode-info">
+      <strong>Soma de Produtos (SOP):</strong> agrupa os <strong>1s</strong> do mapa.
+      Cada grupo gera um implicante (termo AND). A expressão final é OR de todos os termos.
+    </div>
+
+    <div class="section-title">Tabela Verdade</div>
+    <div class="fill-row">
+      <button onclick="fillAll(0)">Tudo 0</button>
+      <button onclick="fillAll(1)">Tudo 1</button>
+      <button onclick="fillAll('x')">Tudo X</button>
+      <button onclick="randomFill()">Aleatório</button>
+    </div>
+    <div class="truth-table-wrap">
+      <table class="tt" id="tt"></table>
+    </div>
+  </div>
+
+  <!-- CONTEÚDO PRINCIPAL -->
+  <div class="content">
+    <div class="step-indicator">
+      <div class="step active" onclick="showStep(0)" id="step0">① Mapa</div>
+      <div class="step" onclick="showStep(1)" id="step1">② Agrupamentos</div>
+      <div class="step" onclick="showStep(2)" id="step2">③ Expressão</div>
+    </div>
+
+    <div class="step-content active" id="sc0">
+      <div class="kmap-legend">
+        <span><span class="leg-dot" style="background:#58a6ff"></span> 1 — incluído</span>
+        <span><span class="leg-dot" style="background:#8b949e"></span> 0 — excluído</span>
+        <span><span class="leg-dot" style="background:#d29922"></span> X — indiferente</span>
+        <span style="margin-left:auto;color:var(--text3);cursor:pointer;" onclick="showStep(1)">Ver agrupamentos →</span>
+      </div>
+      <div class="kmap-wrap" id="kmap-wrap0"></div>
+      <div style="margin-top:1rem;">
+        <button class="action-btn primary" onclick="showStep(1)">Calcular agrupamentos →</button>
+        <button class="action-btn" onclick="shuffleDemo()">Exemplo aleatório</button>
+      </div>
+    </div>
+
+    <div class="step-content" id="sc1">
+      <div class="kmap-wrap" id="kmap-wrap1"></div>
+      <div class="groups-section" id="groups-list"></div>
+      <div style="margin-top:1rem;">
+        <button class="action-btn" onclick="showStep(0)">← Editar mapa</button>
+        <button class="action-btn primary" onclick="showStep(2)">Ver expressão →</button>
+      </div>
+    </div>
+
+    <div class="step-content" id="sc2">
+      <div class="kmap-wrap" id="kmap-wrap2"></div>
+      <div class="result-box" id="result-box">
+        <div class="res-label">Expressão minimizada</div>
+        <div class="res-expr" id="res-expr">—</div>
+      </div>
+      <div id="expression-detail" style="margin-top:1rem;font-size:0.82rem;color:var(--text2);font-family:var(--font);line-height:1.9;"></div>
+      <div style="margin-top:1rem;">
+        <button class="action-btn" onclick="showStep(1)">← Ver agrupamentos</button>
+        <button class="action-btn" onclick="copyExpr()">Copiar expressão</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── STATE ──────────────────────────────────────────────────────────────────
+let nVars = 4;
+let varNames = ['A','B','C','D'];
+let values = new Array(16).fill(0);
+let mode = 'sop';
+let groups = [];
+let currentStep = 0;
+
+const GROUP_COLORS = [
+  {fill:'rgba(255,80,80,0.18)',   stroke:'rgba(255,80,80,0.95)',   hex:'#ff5050'},
+  {fill:'rgba(70,160,255,0.18)',  stroke:'rgba(70,160,255,0.95)',  hex:'#46a0ff'},
+  {fill:'rgba(60,230,140,0.18)',  stroke:'rgba(60,230,140,0.95)',  hex:'#3ce68c'},
+  {fill:'rgba(255,200,40,0.18)',  stroke:'rgba(255,200,40,0.95)',  hex:'#ffc828'},
+  {fill:'rgba(200,90,255,0.18)',  stroke:'rgba(200,90,255,0.95)',  hex:'#c85aff'},
+  {fill:'rgba(255,140,40,0.18)',  stroke:'rgba(255,140,40,0.95)',  hex:'#ff8c28'},
+  {fill:'rgba(80,220,220,0.18)',  stroke:'rgba(80,220,220,0.95)',  hex:'#50dcdc'},
+  {fill:'rgba(255,100,190,0.18)', stroke:'rgba(255,100,190,0.95)', hex:'#ff64be'},
+];
+
+const GRAY2 = [0,1,3,2];
+const GRAY1 = [0,1];
+
+function getLayout() {
+  if (nVars === 2) {
+    return {
+      rows: GRAY1, cols: GRAY1,
+      rowVars: [varNames[0]], colVars: [varNames[1]],
+      cellMinterm: (r,c) => (GRAY1[r] << 1) | GRAY1[c],
+      nRows: 2, nCols: 2,
+    };
+  } else if (nVars === 3) {
+    return {
+      rows: GRAY1, cols: GRAY2,
+      rowVars: [varNames[0]], colVars: [varNames[1], varNames[2]],
+      cellMinterm: (r,c) => (GRAY1[r] << 2) | GRAY2[c],
+      nRows: 2, nCols: 4,
+    };
+  } else {
+    return {
+      rows: GRAY2, cols: GRAY2,
+      rowVars: [varNames[0], varNames[1]], colVars: [varNames[2], varNames[3]],
+      cellMinterm: (r,c) => (GRAY2[r] << 2) | GRAY2[c],
+      nRows: 4, nCols: 4,
+    };
+  }
+}
+
+function getNMinterms() { return 1 << nVars; }
+function getVarNames() { return varNames.slice(0, nVars); }
+
+// ── INIT ────────────────────────────────────────────────────────────────────
+function init() {
+  renderVarNames();
+  renderTruthTable();
+  computeAndRender();
+}
+
+function setNVar(n) {
+  nVars = n;
+  [2,3,4].forEach(v => document.getElementById('nv'+v).classList.remove('active'));
+  document.getElementById('nv'+n).classList.add('active');
+  values = new Array(1<<n).fill(0);
+  init();
+}
+
+function setMode(m) {
+  mode = m;
+  document.getElementById('m-sop').classList.toggle('active', m==='sop');
+  document.getElementById('m-pos').classList.toggle('active', m==='pos');
+  document.getElementById('m-pos').classList.toggle('pos', m==='pos');
+  const infoBox = document.getElementById('mode-info');
+  if (m === 'sop') {
+    infoBox.innerHTML = '<strong>Soma de Produtos (SOP):</strong> agrupa os <strong>1s</strong> do mapa. Cada grupo gera um implicante (termo AND). A expressão final é OR de todos os termos.';
+  } else {
+    infoBox.innerHTML = '<strong>Produto de Somas (POS):</strong> agrupa os <strong>0s</strong> do mapa. Cada grupo gera um maxtermo (termo OR). A expressão final é AND de todos os termos.';
+  }
+  computeAndRender();
+}
+
+function renderVarNames() {
+  const row = document.getElementById('var-names-row');
+  row.innerHTML = '';
+  getVarNames().forEach((n, i) => {
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.maxLength = 2;
+    inp.value = n;
+    inp.oninput = () => { varNames[i] = inp.value || String.fromCharCode(65+i); computeAndRender(); };
+    row.appendChild(inp);
+  });
+}
+
+// ── TRUTH TABLE ──────────────────────────────────────────────────────────────
+function renderTruthTable() {
+  const table = document.getElementById('tt');
+  const nm = getNMinterms();
+  const vn = getVarNames();
+  let html = '<thead><tr><th>m</th>';
+  vn.forEach(v => html += `<th>${v}</th>`);
+  html += '<th>F</th></tr></thead><tbody>';
+  for (let i = 0; i < nm; i++) {
+    html += `<tr><td>${i}</td>`;
+    for (let b = nVars-1; b >= 0; b--) html += `<td>${(i>>b)&1}</td>`;
+    const v = values[i];
+    const cls = v===1?'v1':v==='x'?'vx':'';
+    const disp = v==='x'?'X':v;
+    html += `<td class="minterm-cell ${cls}" onclick="cycleValue(${i})">${disp}</td></tr>`;
+  }
+  html += '</tbody>';
+  table.innerHTML = html;
+}
+
+function cycleValue(idx) {
+  const cur = values[idx];
+  values[idx] = cur===0 ? 1 : cur===1 ? 'x' : 0;
+  computeAndRender();
+}
+
+function fillAll(v) {
+  const nm = getNMinterms();
+  for (let i=0;i<nm;i++) values[i] = v;
+  computeAndRender();
+}
+
+function randomFill() {
+  const nm = getNMinterms();
+  for (let i=0;i<nm;i++) {
+    const r = Math.random();
+    values[i] = r < 0.4 ? 0 : r < 0.8 ? 1 : 'x';
+  }
+  computeAndRender();
+}
+
+function shuffleDemo() { randomFill(); showStep(1); }
+
+// ── KMAP RENDER ──────────────────────────────────────────────────────────────
+function renderKmap(containerId, showGroups) {
+  const L = getLayout();
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  const colLabel = L.colVars.join('');
+  const rowLabel = L.rowVars.join('');
+
+  let html = '<div class="kmap-outer" id="kmap-outer-' + containerId + '"><table class="kmap">';
+
+  // Column headers
+  html += '<thead><tr>';
+  html += `<th class="corner" style="font-size:0.68rem;color:var(--text2);padding:4px 6px;">${rowLabel} \\ ${colLabel}</th>`;
+  if (nVars === 2) {
+    GRAY1.forEach(g => { html += `<th>${L.colVars[0]}=${g}</th>`; });
+  } else {
+    GRAY2.forEach(g => { html += `<th>${(g>>1)&1}${g&1}</th>`; });
+  }
+  html += '</tr></thead><tbody>';
+
+  for (let r=0; r<L.nRows; r++) {
+    html += '<tr>';
+    if (nVars === 2) {
+      html += `<th class="row-header">${L.rowVars[0]}=${GRAY1[r]}</th>`;
+    } else if (nVars === 3) {
+      html += `<th class="row-header">${GRAY1[r]}</th>`;
+    } else {
+      const g = GRAY2[r];
+      html += `<th class="row-header">${(g>>1)&1}${g&1}</th>`;
+    }
+    for (let c=0; c<L.nCols; c++) {
+      const mt = L.cellMinterm(r,c);
+      const v = values[mt];
+      const vcls = v===1?'v1':v==='x'?'vx':'v0';
+      const vdisp = v==='x'?'X':v;
+      html += `<td class="kmap-cell" onclick="cycleValue(${mt})">`;
+      html += `<span class="cell-idx">${mt}</span>`;
+      html += `<span class="cell-val ${vcls}">${vdisp}</span>`;
+      html += '</td>';
+    }
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+  html += `<svg class="kmap-svg-overlay" id="svg-${containerId}"></svg>`;
+  html += '</div>';
+
+  container.innerHTML = html;
+
+  if (showGroups && groups.length > 0) {
+    requestAnimationFrame(() => drawSVGBubbles(containerId));
+  }
+}
+
+// ── SVG BUBBLE DRAWING ────────────────────────────────────────────────────────
+/*
+  Visual design matching the reference image:
+
+  NON-WRAPPING group → single filled rounded-rect with border on all 4 sides.
+
+  WRAPPING group → two open "C-shapes" (or "U-shapes"), one per sub-region.
+  Each C-shape has:
+    • 3 sides with border + rounded outer corners
+    • 1 open side (the edge that faces the map boundary) — NO border there,
+      border stops at the map edge.
+  The two C-shapes share a single external connecting line drawn exactly at
+  the grid edge (outside the map), visually bridging the two halves like
+  the staple/bracket seen in textbooks.
+
+  For a column-wrap (left+right edges):
+    • Right sub-rect: right side open → ⊏ shape
+    • Left  sub-rect: left  side open → ⊐ shape
+    • Two horizontal lines connect them at the top and bottom outside the grid
+
+  For a row-wrap (top+bottom edges):
+    • Bottom sub-rect: bottom side open → ∩ shape
+    • Top    sub-rect: top    side open → ∪ shape
+    • Two vertical lines connect them at the left and right outside the grid
+
+  Corner-wrap → combination of both.
+
+  Implementation:
+  openSide path = 3-sided polygon with rounded outer corners.
+  We draw fill + stroke separately so the fill covers the inside
+  and the stroke only traces the 3 closed sides.
+*/
+
+const OVERHANG = 16;  // px the C-shape extends beyond the grid edge
+const PAD      = 4;   // inset from cell edge
+const RX       = 10;  // corner radius
+
+function getCellRects(containerId) {
+  const outer = document.getElementById('kmap-outer-' + containerId);
+  if (!outer) return null;
+  const outerRect = outer.getBoundingClientRect();
+  const L = getLayout();
+  const rects = {};
+  const table = outer.querySelector('table.kmap');
+  const tbody  = table.querySelector('tbody');
+  for (let r=0; r<L.nRows; r++) {
+    for (let c=0; c<L.nCols; c++) {
+      const mt  = L.cellMinterm(r,c);
+      const row = tbody.rows[r];
+      const cell = row.cells[c+1];
+      const cr  = cell.getBoundingClientRect();
+      rects[mt] = {
+        x: cr.left - outerRect.left,
+        y: cr.top  - outerRect.top,
+        w: cr.width,
+        h: cr.height,
+        r, c,
+      };
+    }
+  }
+  return rects;
+}
+
+// openSide: 'top'|'bottom'|'left'|'right'|null
+// Returns {fill, stroke} SVG path strings.
+// fill  = closed shape for background colour
+// stroke = open 3-sided path for the border
+function cShapePaths(x, y, w, h, R, openSide) {
+  R = Math.min(R, w/2, h/2);
+  const x1=x, y1=y, x2=x+w, y2=y+h;
+
+  // Helper: arc sweep clockwise
+  const arc = (rx,ry,ex,ey) => `A ${rx} ${ry} 0 0 1 ${ex} ${ey}`;
+
+  if (!openSide) {
+    // Full rounded rect — fill and stroke are the same closed path
+    const d = `M ${x1+R} ${y1} H ${x2-R} ${arc(R,R,x2,y1+R)} V ${y2-R} ${arc(R,R,x2-R,y2)} H ${x1+R} ${arc(R,R,x1,y2-R)} V ${y1+R} ${arc(R,R,x1+R,y1)} Z`;
+    return {fill: d, stroke: d};
+  }
+
+  // For open sides: corners adjacent to open side are square (r=0), others rounded.
+  // We build a fill path (closed, no border on open side visually) and
+  // a stroke path (open polyline tracing only the 3 closed sides).
+
+  // Determine corner radii: a corner is rounded only if NEITHER adjacent side is open.
+  const rTL = (openSide==='top'||openSide==='left')   ? 0 : R;
+  const rTR = (openSide==='top'||openSide==='right')  ? 0 : R;
+  const rBR = (openSide==='bottom'||openSide==='right')? 0 : R;
+  const rBL = (openSide==='bottom'||openSide==='left') ? 0 : R;
+
+  // Build the 4-segment path clockwise from top-left, but for the stroke
+  // we leave the open side as an open gap (M instead of continuing).
+  // For fill we always close.
+
+  // segments: TL→TR (top), TR→BR (right), BR→BL (bottom), BL→TL (left)
+  const seg = {
+    top:    `M ${x1+rTL} ${y1} H ${x2-rTR}` + (rTR ? ` ${arc(rTR,rTR,x2,y1+rTR)}` : ''),
+    right:  (rTR?'':`M ${x2} ${y1+rTR}`) + ` V ${y2-rBR}` + (rBR ? ` ${arc(rBR,rBR,x2-rBR,y2)}` : ''),
+    bottom: (rBR?'':`M ${x2-rBR} ${y2}`) + ` H ${x1+rBL}` + (rBL ? ` ${arc(rBL,rBL,x1,y2-rBL)}` : ''),
+    left:   (rBL?'':`M ${x1} ${y2-rBL}`) + ` V ${y1+rTL}` + (rTL ? ` ${arc(rTL,rTL,x1+rTL,y1)}` : ''),
+  };
+
+  const sides = ['top','right','bottom','left'];
+  const closedSides = sides.filter(s => s !== openSide);
+
+  // Stroke: draw only the 3 closed sides as a continuous open path.
+  // Start from the end of the open side (going clockwise), trace 3 sides.
+  const order = ['top','right','bottom','left'];
+  const startIdx = (order.indexOf(openSide) + 1) % 4;
+  let strokeD = '';
+  for (let i=0; i<3; i++) {
+    const s = order[(startIdx + i) % 4];
+    strokeD += (i===0 ? '' : ' ') + seg[s].replace(/^M [^ ]+ [^ ]+/, (m) => i===0 ? m : m.replace('M','L'));
+  }
+
+  // Fill: closed shape. Build all 4 corners but no border drawn on open side.
+  // We draw a closed polygon going through all 4 corners.
+  let fillD = `M ${x1+rTL} ${y1}`;
+  fillD += ` H ${x2-rTR}`;
+  if (rTR) fillD += ` ${arc(rTR,rTR,x2,y1+rTR)}`;
+  fillD += ` V ${y2-rBR}`;
+  if (rBR) fillD += ` ${arc(rBR,rBR,x2-rBR,y2)}`;
+  fillD += ` H ${x1+rBL}`;
+  if (rBL) fillD += ` ${arc(rBL,rBL,x1,y2-rBL)}`;
+  fillD += ` V ${y1+rTL}`;
+  if (rTL) fillD += ` ${arc(rTL,rTL,x1+rTL,y1)}`;
+  fillD += ' Z';
+
+  return {fill: fillD, stroke: strokeD};
+}
+
+function addPath(svg, d, fill, stroke, sw) {
+  const p = document.createElementNS('http://www.w3.org/2000/svg','path');
+  p.setAttribute('d', d);
+  p.setAttribute('fill', fill);
+  if (stroke) { p.setAttribute('stroke', stroke); p.setAttribute('stroke-width', sw||'2.5'); p.setAttribute('stroke-linecap','round'); p.setAttribute('stroke-linejoin','round'); p.setAttribute('fill', 'none'); }
+  svg.appendChild(p);
+  return p;
+}
+
+function drawSVGBubbles(containerId) {
+  const svg = document.getElementById('svg-' + containerId);
+  if (!svg) return;
+  const outer = document.getElementById('kmap-outer-' + containerId);
+  if (!outer) return;
+
+  const outerRect = outer.getBoundingClientRect();
+  const OV = OVERHANG + 8;
+  svg.setAttribute('width',   outerRect.width);
+  svg.setAttribute('height',  outerRect.height);
+  svg.setAttribute('viewBox', `${-OV} ${-OV} ${outerRect.width+OV*2} ${outerRect.height+OV*2}`);
+  svg.style.overflow = 'visible';
+
+  const cellRects = getCellRects(containerId);
+  if (!cellRects) return;
+  const L = getLayout();
+
+  const pos = {};
+  for (let r=0; r<L.nRows; r++)
+    for (let c=0; c<L.nCols; c++)
+      pos[L.cellMinterm(r,c)] = {r, c};
+
+  svg.innerHTML = '';
+
+  // Grid pixel bounds
+  const fc = cellRects[L.cellMinterm(0, 0)];
+  const lc = cellRects[L.cellMinterm(L.nRows-1, L.nCols-1)];
+  const gridLeft   = fc.x;
+  const gridTop    = fc.y;
+  const gridRight  = lc.x + lc.w;
+  const gridBottom = lc.y + lc.h;
+
+  groups.forEach((grp, gi) => {
+    const col = GROUP_COLORS[gi % GROUP_COLORS.length];
+
+    const rows = grp.cells.map(mt => pos[mt].r);
+    const cols = grp.cells.map(mt => pos[mt].c);
+    const minR = Math.min(...rows), maxR = Math.max(...rows);
+    const minC = Math.min(...cols), maxC = Math.max(...cols);
+
+    const wrapRows = (grp.h > 1) && ((maxR - minR + 1) !== grp.h);
+    const wrapCols = (grp.w > 1) && ((maxC - minC + 1) !== grp.w);
+
+    if (!wrapRows && !wrapCols) {
+      // ── Simple non-wrapping bubble ─────────────────────────────────
+      const tl = cellRects[L.cellMinterm(minR, minC)];
+      const br = cellRects[L.cellMinterm(maxR, maxC)];
+      const x=tl.x+PAD, y=tl.y+PAD;
+      const w=(br.x+br.w)-tl.x-PAD*2, h=(br.y+br.h)-tl.y-PAD*2;
+      const {fill: fd, stroke: sd} = cShapePaths(x,y,w,h,RX,null);
+      // fill
+      const fp = document.createElementNS('http://www.w3.org/2000/svg','path');
+      fp.setAttribute('d',fd); fp.setAttribute('fill',col.fill); fp.setAttribute('stroke','none');
+      svg.appendChild(fp);
+      // stroke
+      const sp = document.createElementNS('http://www.w3.org/2000/svg','path');
+      sp.setAttribute('d',sd); sp.setAttribute('fill','none');
+      sp.setAttribute('stroke',col.stroke); sp.setAttribute('stroke-width','2.5');
+      sp.setAttribute('stroke-linecap','round'); sp.setAttribute('stroke-linejoin','round');
+      svg.appendChild(sp);
+      return;
+    }
+
+    // ── Wrapping bubble ──────────────────────────────────────────────
+    // Build sub-rect list with openSide per rect
+    let rowSets, colSets;
+    if (wrapRows) {
+      const topMin = Math.min(...rows.filter(r => r >= L.nRows/2));
+      const btmMax = Math.max(...rows.filter(r => r < L.nRows/2));
+      rowSets = [
+        {min: topMin, max: L.nRows-1, open: 'bottom'},  // extends down past grid
+        {min: 0,      max: btmMax,    open: 'top'},      // extends up past grid
+      ];
+    } else {
+      rowSets = [{min: minR, max: maxR, open: null}];
+    }
+    if (wrapCols) {
+      const leftMin  = Math.min(...cols.filter(c => c >= L.nCols/2));
+      const rightMax = Math.max(...cols.filter(c => c < L.nCols/2));
+      colSets = [
+        {min: leftMin,  max: L.nCols-1, open: 'right'},  // extends right past grid
+        {min: 0,        max: rightMax,  open: 'left'},    // extends left past grid
+      ];
+    } else {
+      colSets = [{min: minC, max: maxC, open: null}];
+    }
+
+    // Collect drawn sub-rects for connecting lines
+    const drawn = [];
+
+    rowSets.forEach(rs => {
+      colSets.forEach(cs => {
+        const tl = cellRects[L.cellMinterm(rs.min, cs.min)];
+        const br = cellRects[L.cellMinterm(rs.max, cs.max)];
+        if (!tl || !br) return;
+
+        let x=tl.x+PAD, y=tl.y+PAD;
+        let x2=br.x+br.w-PAD, y2=br.y+br.h-PAD;
+
+        // Determine combined openSide (diagonal wraps have 2 open sides — pick one dominant)
+        // For corner wraps, handle row & col open independently using compound open.
+        // We draw two separate C-shapes stacked: one for row-open, one for col-open.
+        // Simpler: extend the rect in the open direction and mark open side.
+        let openSide = null;
+        if (rs.open === 'bottom') { y2 = gridBottom + OVERHANG; openSide = 'bottom'; }
+        if (rs.open === 'top')    { y  = gridTop    - OVERHANG; openSide = 'top'; }
+        if (cs.open === 'right')  { x2 = gridRight  + OVERHANG; openSide = openSide ? null : 'right'; }
+        if (cs.open === 'left')   { x  = gridLeft   - OVERHANG; openSide = openSide ? null : 'left'; }
+
+        // For corner wraps (both row and col open), openSide=null gives a filled rect
+        // which is actually what we want — the corner pieces just fill in.
+        const w=x2-x, h=y2-y;
+        const {fill: fd, stroke: sd} = cShapePaths(x,y,w,h,RX,openSide);
+
+        const fp = document.createElementNS('http://www.w3.org/2000/svg','path');
+        fp.setAttribute('d',fd); fp.setAttribute('fill',col.fill); fp.setAttribute('stroke','none');
+        svg.appendChild(fp);
+
+        const sp = document.createElementNS('http://www.w3.org/2000/svg','path');
+        sp.setAttribute('d',sd); sp.setAttribute('fill','none');
+        sp.setAttribute('stroke',col.stroke); sp.setAttribute('stroke-width','2.5');
+        sp.setAttribute('stroke-linecap','round'); sp.setAttribute('stroke-linejoin','round');
+        svg.appendChild(sp);
+
+      });
+    });
+  });
+}
+
+// ── KARNAUGH ALGORITHM ────────────────────────────────────────────────────────
+function findAllGroups(targetVal) {
+  const L = getLayout();
+  const nm = getNMinterms();
+
+  const essential = new Set();
+  for (let i=0;i<nm;i++) if(values[i]===targetVal) essential.add(i);
+  const usable = new Set();
+  for (let i=0;i<nm;i++) if(values[i]===targetVal || values[i]==='x') usable.add(i);
+
+  if (essential.size === 0) return [];
+
+  const validGroups = [];
+  const hSizes = [1,2,4].filter(h=>h<=L.nRows);
+  const wSizes = [1,2,4].filter(w=>w<=L.nCols);
+
+  for (const h of hSizes) {
+    for (const w of wSizes) {
+      for (let r0=0;r0<L.nRows;r0++) {
+        for (let c0=0;c0<L.nCols;c0++) {
+          const cells = [];
+          let valid = true;
+          for (let dr=0;dr<h;dr++) {
+            for (let dc=0;dc<w;dc++) {
+              const r = (r0+dr)%L.nRows;
+              const c = (c0+dc)%L.nCols;
+              const mt = L.cellMinterm(r,c);
+              if (!usable.has(mt)) { valid=false; break; }
+              cells.push(mt);
+            }
+            if (!valid) break;
+          }
+          if (!valid) continue;
+          if (!cells.some(mt=>essential.has(mt))) continue;
+          const cellSet = [...new Set(cells)];
+          if (cellSet.length !== h*w) continue;
+          validGroups.push({cells: cellSet, size: h*w, r0, c0, h, w});
+        }
+      }
+    }
+  }
+
+  // Deduplicate by cell set
+  const unique = [];
+  const seen = new Set();
+  for (const g of validGroups) {
+    const key = [...g.cells].sort((a,b)=>a-b).join(',');
+    if (!seen.has(key)) { seen.add(key); unique.push(g); }
+  }
+
+  // Keep maximal (not subsumed by larger group)
+  const maximal = unique.filter(g => {
+    const gSet = new Set(g.cells);
+    return !unique.some(other => {
+      if (other===g) return false;
+      const oSet = new Set(other.cells);
+      if (oSet.size <= gSet.size) return false;
+      return g.cells.every(c=>oSet.has(c));
+    });
+  });
+
+  return greedyCover(maximal, essential);
+}
+
+function greedyCover(candidates, essential) {
+  const sorted = [...candidates].sort((a,b)=>b.size-a.size);
+  const covered = new Set();
+  const selected = [];
+  const essArr = [...essential];
+
+  // Essential implicants: cells covered by exactly one maximal implicant
+  const coverMap = {};
+  essArr.forEach(mt => { coverMap[mt] = sorted.filter(g=>g.cells.includes(mt)); });
+  const forced = new Set();
+  essArr.forEach(mt => {
+    if (coverMap[mt].length===1 && !forced.has(coverMap[mt][0])) {
+      forced.add(coverMap[mt][0]);
+      selected.push(coverMap[mt][0]);
+      coverMap[mt][0].cells.forEach(c=>covered.add(c));
+    }
+  });
+
+  // Greedy cover remaining
+  let remaining = essArr.filter(mt=>!covered.has(mt));
+  while (remaining.length > 0) {
+    let best=null, bestCount=0;
+    for (const g of sorted) {
+      if (selected.includes(g)) continue;
+      const cnt = remaining.filter(mt=>g.cells.includes(mt)).length;
+      if (cnt>bestCount || (cnt===bestCount && best && g.size>best.size)) { best=g; bestCount=cnt; }
+    }
+    if (!best) break;
+    selected.push(best);
+    best.cells.forEach(c=>covered.add(c));
+    remaining = remaining.filter(mt=>!covered.has(mt));
+  }
+
+  return selected;
+}
+
+// ── EXPRESSION ───────────────────────────────────────────────────────────────
+function groupToExpression(g) {
+  const vn = getVarNames();
+  const terms = [];
+  for (let b=0; b<nVars; b++) {
+    const bit = nVars-1-b;
+    const vals = g.cells.map(mt=>(mt>>bit)&1);
+    if (vals.every(v=>v===vals[0])) {
+      if (mode==='sop') terms.push(vals[0]===1 ? vn[b] : vn[b]+"'");
+      else              terms.push(vals[0]===0 ? vn[b] : vn[b]+"'");
+    }
+  }
+  if (terms.length===0) return mode==='sop'?'1':'0';
+  return mode==='sop' ? terms.join('·') : '('+terms.join('+')+')';
+}
+
+function buildExpression() {
+  if (groups.length===0) {
+    const nm = getNMinterms();
+    const target = mode==='sop'?1:0;
+    return values.slice(0,nm).some(v=>v===target) ? (mode==='sop'?'F = 1':'F = 0') : (mode==='sop'?'F = 0':'F = 1');
+  }
+  const exprs = [...new Set(groups.map(g=>groupToExpression(g)))];
+  return 'F = ' + (mode==='sop' ? exprs.join(' + ') : exprs.join('·'));
+}
+
+function getConstVars(g) {
+  const vn = getVarNames();
+  const terms = [];
+  for (let b=0;b<nVars;b++) {
+    const bit=nVars-1-b;
+    const vals=g.cells.map(mt=>(mt>>bit)&1);
+    if(vals.every(v=>v===vals[0])) terms.push(vn[b]+'='+vals[0]);
+  }
+  return terms.join(', ');
+}
+
+// ── COMPUTE & RENDER ─────────────────────────────────────────────────────────
+function computeAndRender() {
+  renderTruthTable();
+  const target = mode==='sop'?1:0;
+  groups = findAllGroups(target);
+  renderKmap('kmap-wrap0', false);
+  renderKmap('kmap-wrap1', true);
+  renderKmap('kmap-wrap2', true);
+  renderGroupsList();
+  renderExpression();
+}
+
+function renderGroupsList() {
+  const el = document.getElementById('groups-list');
+  if (!el) return;
+  if (groups.length===0) {
+    el.innerHTML = '<div style="color:var(--text2);font-size:0.82rem;font-family:var(--font);margin-top:1rem;">Nenhum grupo encontrado para os valores atuais.</div>';
+    return;
+  }
+  let html = '<div class="section-title" style="margin-top:0;">Grupos identificados</div>';
+  groups.forEach((g,gi) => {
+    const col = GROUP_COLORS[gi%GROUP_COLORS.length];
+    const expr = groupToExpression(g);
+    const mts = [...g.cells].sort((a,b)=>a-b).join(', ');
+    html += `<div class="group-item">
+      <div class="group-swatch" style="background:${col.hex};"></div>
+      <div>
+        <span style="color:${col.hex};font-weight:700;">${expr}</span>
+        <span style="color:var(--text2);font-size:0.72rem;margin-left:6px;">(${g.size} célula${g.size>1?'s':''})</span><br>
+        <span style="color:var(--text2);font-size:0.72rem;">Mintermos: {${mts}}</span>
+      </div>
+    </div>`;
+  });
+  el.innerHTML = html;
+}
+
+function renderExpression() {
+  const el = document.getElementById('res-expr');
+  const det = document.getElementById('expression-detail');
+  if (!el) return;
+  el.textContent = buildExpression();
+  el.className = 'res-expr' + (mode==='pos'?' pos-color':'');
+  if (!det || groups.length===0) { if(det) det.innerHTML=''; return; }
+  let html = '<div style="margin-bottom:0.5rem;color:var(--text2);">Decomposição por grupos:</div>';
+  groups.forEach((g,gi) => {
+    const col = GROUP_COLORS[gi%GROUP_COLORS.length];
+    const expr2 = groupToExpression(g);
+    const mts = [...g.cells].sort((a,b)=>a-b).join(', ');
+    html += `<div style="margin-bottom:5px;">
+      <span style="display:inline-block;width:11px;height:11px;background:${col.hex};border-radius:2px;margin-right:6px;vertical-align:middle;"></span>
+      <span style="color:${col.hex}">${expr2}</span>
+      <span style="color:var(--text2);font-size:0.72rem;margin-left:8px;">mintermos {${mts}} · ${g.size} célula${g.size>1?'s':''} · ${getConstVars(g)}</span>
+    </div>`;
+  });
+  det.innerHTML = html;
+}
+
+// ── NAVIGATION ───────────────────────────────────────────────────────────────
+function showStep(n) {
+  currentStep = n;
+  [0,1,2].forEach(i => {
+    document.getElementById('step'+i).classList.toggle('active', i===n);
+    document.getElementById('sc'+i).classList.toggle('active', i===n);
+  });
+  // Redraw SVG bubbles when switching to steps that show them
+  if (n===1) requestAnimationFrame(()=>drawSVGBubbles('kmap-wrap1'));
+  if (n===2) requestAnimationFrame(()=>drawSVGBubbles('kmap-wrap2'));
+}
+
+function copyExpr() {
+  const txt = document.getElementById('res-expr').textContent;
+  navigator.clipboard.writeText(txt).catch(()=>{});
+}
+
+// ── STARTUP ──────────────────────────────────────────────────────────────────
+values = [0,1,1,0, 1,1,0,0, 1,1,0,0, 0,1,1,0];
+init();
+
+// Redraw on window resize
+window.addEventListener('resize', () => {
+  if (currentStep===1) drawSVGBubbles('kmap-wrap1');
+  if (currentStep===2) drawSVGBubbles('kmap-wrap2');
+});
+</script>
+</body>
+</html>
