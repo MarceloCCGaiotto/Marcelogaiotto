@@ -1,0 +1,1765 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aritmética Digital — Objeto de Aprendizagem</title>
+<style>
+:root{
+  --bg:#f8f9fa;--bg2:#ffffff;--bg3:#eef0f4;
+  --text:#1a1d23;--text2:#5a5f6e;--text3:#8b90a0;
+  --blue:#2563eb;--blue-l:#dbeafe;--blue-d:#1d4ed8;
+  --green:#16a34a;--green-l:#dcfce7;--green-d:#15803d;
+  --amber:#d97706;--amber-l:#fef3c7;--amber-d:#92400e;
+  --red:#dc2626;--red-l:#fee2e2;--red-d:#991b1b;
+  --purple:#7c3aed;--purple-l:#ede9fe;
+  --teal:#0d9488;--teal-l:#ccfbf1;
+  --border:#e2e8f0;--radius:10px;--radius-lg:16px;
+  --shadow:0 1px 3px rgba(0,0,0,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:15px;line-height:1.6}
+h1{font-size:22px;font-weight:600}
+h2{font-size:17px;font-weight:600;margin-bottom:10px}
+h3{font-size:13px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.tabs{display:flex;gap:4px;padding:14px 20px 0;border-bottom:2px solid var(--border);background:var(--bg2);position:sticky;top:0;z-index:100;overflow-x:auto}
+.tab{padding:8px 16px;border-radius:8px 8px 0 0;border:none;background:transparent;cursor:pointer;font-size:13px;font-weight:500;color:var(--text2);transition:all .2s;white-space:nowrap}
+.tab:hover{background:var(--bg3)}
+.tab.active{background:var(--blue);color:#fff}
+.section{display:none;padding:20px}
+.section.active{display:block}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px;margin-bottom:14px;box-shadow:var(--shadow)}
+label{font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px}
+input[type=text],input[type=number],select{padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;background:var(--bg2);color:var(--text);transition:border-color .2s;font-family:monospace}
+input:focus{outline:none;border-color:var(--blue)}
+.btn{padding:8px 18px;border-radius:7px;border:none;cursor:pointer;font-size:13px;font-weight:500;transition:all .15s;display:inline-flex;align-items:center;gap:5px}
+.btn-primary{background:var(--blue);color:#fff}.btn-primary:hover{background:var(--blue-d)}
+.btn-secondary{background:var(--bg3);color:var(--text);border:1px solid var(--border)}.btn-secondary:hover{background:var(--border)}
+.btn:active{transform:scale(.97)}
+.btn-row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}
+.seg{display:inline-flex;border:1.5px solid var(--border);border-radius:7px;overflow:hidden}
+.seg-btn{padding:6px 14px;border:none;background:transparent;cursor:pointer;font-size:12px;font-weight:500;color:var(--text2);transition:all .15s}
+.seg-btn.active{background:var(--blue);color:#fff}
+/* DIGIT CELLS — uniform for ALL digits 0 and 1 */
+.dcell{
+  width:36px;height:36px;border-radius:6px;display:flex;align-items:center;justify-content:center;
+  font-size:15px;font-weight:700;font-family:monospace;border:2px solid var(--border);
+  background:var(--bg3);color:var(--text2);transition:all .35s;flex-shrink:0
+}
+.dcell.d1{background:var(--blue-l);border-color:var(--blue);color:var(--blue-d)}
+.dcell.d0{background:var(--bg3);border-color:var(--border);color:var(--text2)}
+.dcell.dcarry{background:var(--amber-l);border-color:var(--amber);color:var(--amber-d);animation:pulse .5s}
+.dcell.dresult{background:var(--green-l);border-color:var(--green);color:var(--green-d)}
+.dcell.doverflow{background:var(--red-l);border-color:var(--red);color:var(--red-d);animation:shake .4s}
+.dcell.dinv{background:#fce7f3;border-color:#be185d;color:#9d174d}
+.dcell.dc2{background:var(--green-l);border-color:var(--green);color:var(--green-d)}
+.dcell.dhigh{animation:glow .7s ease}
+.dcell.discarded{background:var(--red-l);border-color:var(--red);color:var(--red-d);position:relative}
+.dcell.discarded::after{content:'✕';position:absolute;font-size:22px;color:var(--red);font-weight:900;opacity:.85}
+/* ROW LAYOUT */
+.drow{display:flex;gap:5px;align-items:center;justify-content:flex-end;flex-wrap:nowrap}
+.drow-label{font-size:12px;font-weight:600;color:var(--text2);min-width:32px;text-align:right;padding-right:6px;flex-shrink:0}
+.op-symbol{font-size:22px;font-weight:700;color:var(--text2);min-width:32px;text-align:center;flex-shrink:0;align-self:center}
+.drow-wrap{display:flex;flex-direction:column;gap:6px;overflow-x:auto;padding-bottom:4px}
+.divider-line{height:2px;background:var(--border);margin:6px 0}
+/* HEX CELL — wider */
+.hcell{
+  min-width:44px;height:40px;padding:0 4px;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  border:2px solid var(--border);background:var(--bg3);color:var(--text2);transition:all .35s;flex-shrink:0;font-family:monospace
+}
+.hcell .hd{font-size:15px;font-weight:700}
+.hcell .hv{font-size:9px;color:var(--text3);font-weight:500}
+.hcell.h1{background:var(--blue-l);border-color:var(--blue)}.hcell.h1 .hd{color:var(--blue-d)}.hcell.h1 .hv{color:var(--blue)}
+.hcell.hcarry{background:var(--amber-l);border-color:var(--amber)}.hcell.hcarry .hd{color:var(--amber-d)}.hcell.hcarry .hv{color:var(--amber)}
+.hcell.hresult{background:var(--green-l);border-color:var(--green)}.hcell.hresult .hd{color:var(--green-d)}.hcell.hresult .hv{color:var(--green)}
+.hcell.hactive{animation:glow .6s ease}
+.hcell.hover16{background:#fce7f3;border-color:#be185d}.hcell.hover16 .hd{color:#9d174d}.hcell.hover16 .hv{color:#be185d}
+/* carry-raw: shows raw sum value when >=16 */
+.carry-raw-box{
+  min-width:44px;height:40px;padding:0 4px;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  border:2px dashed var(--amber);background:var(--amber-l);flex-shrink:0;font-family:monospace;transition:all .35s
+}
+.carry-raw-box .crv{font-size:15px;font-weight:700;color:var(--amber-d)}
+.carry-raw-box .crl{font-size:9px;color:var(--amber);font-weight:500}
+/* LOG */
+.slog{background:var(--bg3);border-radius:8px;padding:10px;font-family:monospace;font-size:12px;max-height:180px;overflow-y:auto;color:var(--text)}
+.slog div{padding:2px 0;border-bottom:1px solid var(--border);animation:fadeIn .3s}
+.slog div:last-child{border:none}
+.slog .ok{color:var(--green-d)}
+.slog .cmsg{color:var(--amber-d);font-weight:600}
+.slog .emsg{color:var(--red-d);font-weight:600}
+/* CIRCUIT SVG */
+.cw{overflow-x:auto;background:var(--bg3);border-radius:12px;padding:14px}
+.wire{stroke-width:2.5;fill:none;transition:stroke .35s,stroke-width .35s}
+.wire.wactive{stroke:#2563eb;stroke-width:3.5}
+.wire.wcarry{stroke:#e5e7eb}
+.wire.wcarry.wactive{stroke:#d97706;stroke-width:3.5}
+.gbox{fill:var(--bg2);stroke:#64748b;stroke-width:1.8;rx:5}
+.glabel{font-size:11px;font-weight:700;font-family:monospace;fill:#1e293b}
+.inode{r:10;stroke-width:2;transition:all .4s}
+.inode.hi{fill:#dbeafe;stroke:#2563eb}
+.inode.lo{fill:#f1f5f9;stroke:#cbd5e1}
+.onode{r:12;stroke-width:2.5;transition:all .4s}
+.onode.hi{fill:#dcfce7;stroke:#16a34a}
+.onode.hiC{fill:#fef3c7;stroke:#d97706}
+.onode.lo{fill:#f1f5f9;stroke:#cbd5e1}
+/* ripple carry blocks */
+.rcblock{fill:#f0f4ff;stroke:#93b5f7;stroke-width:1.5;rx:6}
+.rcblock.ha{fill:#f0fdf4;stroke:#86efac}
+.rcblock.active{fill:#dbeafe;stroke:#3b82f6;stroke-width:2.5}
+/* INFO */
+.info{border-left:3px solid var(--blue);border-radius:0 7px 7px 0;padding:9px 12px;font-size:13px;margin:6px 0;background:var(--blue-l);color:var(--text)}
+.info.warn{background:var(--amber-l);border-color:var(--amber)}
+.info.danger{background:var(--red-l);border-color:var(--red)}
+.info.success{background:var(--green-l);border-color:var(--green)}
+/* ANIMATIONS */
+@keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.3)}100%{transform:scale(1)}}
+@keyframes shake{0%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}100%{transform:translateX(0)}}
+@keyframes glow{0%,100%{box-shadow:0 0 0 0 transparent}50%{box-shadow:0 0 0 5px rgba(37,99,235,.35)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+.carry-fly{position:fixed;font-size:16px;font-weight:700;color:var(--amber-d);pointer-events:none;z-index:999;animation:flyUp .9s ease forwards;background:var(--amber-l);padding:2px 8px;border-radius:12px;border:1px solid var(--amber)}
+@keyframes flyUp{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-55px)}}
+.speed-row{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2)}
+.speed-row input[type=range]{width:90px}
+.badge{display:inline-block;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:600}
+.bb{background:var(--blue-l);color:var(--blue-d)}
+.bg{background:var(--green-l);color:var(--green-d)}
+.br{background:var(--red-l);color:var(--red-d)}
+.ba{background:var(--amber-l);color:var(--amber-d)}
+</style>
+</head>
+<body>
+
+<div style="background:var(--bg2);border-bottom:1px solid var(--border);padding:12px 20px;display:flex;align-items:center;gap:10px">
+  <div style="width:34px;height:34px;background:var(--blue);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+    <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#fff" stroke-width="2.2"><path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+  </div>
+  <div>
+    <h1>Aritmética Digital — Objeto de Aprendizagem</h1>
+    <p style="font-size:11px;color:var(--text3)">Soma binária · Soma hexadecimal · Circuitos somadores · Subtração com complemento de 2</p>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="showTab('bin')">① Soma Binária</button>
+  <button class="tab" onclick="showTab('hex')">② Soma Hexadecimal</button>
+  <button class="tab" onclick="showTab('circ')">③ Circuitos Somadores</button>
+  <button class="tab" onclick="showTab('c2')">④ Complemento de 2</button>
+  <button class="tab" onclick="showTab('sub')">⑤ Subtração (C2)</button>
+</div>
+
+<!-- ══════════ ABA 1 — SOMA BINÁRIA ══════════ -->
+<div id="tab-bin" class="section active">
+  <h2>Soma de números binários com transporte (carry)</h2>
+  <p style="color:var(--text2);font-size:13px;margin-bottom:14px">Selecione a largura, insira os números e observe o transporte coluna a coluna — do bit menos significativo (LSB, direita) ao mais significativo (MSB, esquerda).</p>
+
+  <div class="card">
+    <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end">
+      <div>
+        <h3>Largura de palavra</h3>
+        <div class="seg" id="bin-bits-seg">
+          <button class="seg-btn" onclick="setBinBits(2)">2 bits</button>
+          <button class="seg-btn" onclick="setBinBits(4)">4 bits</button>
+          <button class="seg-btn active" onclick="setBinBits(8)">8 bits</button>
+        </div>
+      </div>
+      <div class="speed-row">
+        <span>Velocidade:</span>
+        <input type="range" id="bin-speed" min="150" max="1400" value="700" step="50">
+        <span id="bin-speed-lbl">médio</span>
+      </div>
+    </div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:12px">
+      <div style="flex:1;min-width:150px">
+        <label>Número A</label>
+        <input type="text" id="bin-a" value="01101010" style="width:100%" oninput="validateBin('a')">
+        <div style="font-size:11px;color:var(--text3);margin-top:2px" id="bin-a-dec"></div>
+      </div>
+      <div style="flex:1;min-width:150px">
+        <label>Número B</label>
+        <input type="text" id="bin-b" value="00110101" style="width:100%" oninput="validateBin('b')">
+        <div style="font-size:11px;color:var(--text3);margin-top:2px" id="bin-b-dec"></div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="startBinAnim()">▶ Animar soma</button>
+      <button class="btn btn-secondary" onclick="resetBin()">↺ Limpar</button>
+      <button class="btn btn-secondary" onclick="randomBin()">🎲 Aleatório</button>
+    </div>
+  </div>
+
+  <div class="card" id="bin-anim-card" style="display:none">
+    <div id="bin-arena" class="drow-wrap"></div>
+    <div id="bin-overflow-info" style="margin-top:8px"></div>
+    <div style="height:10px"></div>
+    <h3>Log de operações</h3>
+    <div class="slog" id="bin-log"></div>
+  </div>
+</div>
+
+<!-- ══════════ ABA 2 — SOMA HEXADECIMAL ══════════ -->
+<div id="tab-hex" class="section">
+  <h2>Soma de números hexadecimais</h2>
+  <p style="color:var(--text2);font-size:13px;margin-bottom:14px">O carry é gerado quando a soma de dois dígitos (+ carry in) ultrapassa 15 (F₁₆). A coluna mostra a soma bruta, a subtração de 16 e o dígito resultante.</p>
+
+  <div class="card">
+    <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end">
+      <div>
+        <h3>Número de dígitos</h3>
+        <div class="seg" id="hex-bits-seg">
+          <button class="seg-btn" onclick="setHexDig(1)">1</button>
+          <button class="seg-btn" onclick="setHexDig(2)">2</button>
+          <button class="seg-btn active" onclick="setHexDig(3)">3</button>
+          <button class="seg-btn" onclick="setHexDig(4)">4</button>
+        </div>
+      </div>
+      <div class="speed-row">
+        <span>Velocidade:</span>
+        <input type="range" id="hex-speed" min="150" max="1400" value="700" step="50">
+        <span id="hex-speed-lbl">médio</span>
+      </div>
+    </div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:12px">
+      <div style="flex:1;min-width:150px">
+        <label>Número A (hex)</label>
+        <input type="text" id="hex-a" value="3AF" style="width:100%" oninput="validateHex('a')">
+        <div style="font-size:11px;color:var(--text3);margin-top:2px" id="hex-a-dec"></div>
+      </div>
+      <div style="flex:1;min-width:150px">
+        <label>Número B (hex)</label>
+        <input type="text" id="hex-b" value="23C" style="width:100%" oninput="validateHex('b')">
+        <div style="font-size:11px;color:var(--text3);margin-top:2px" id="hex-b-dec"></div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="startHexAnim()">▶ Animar soma</button>
+      <button class="btn btn-secondary" onclick="resetHex()">↺ Limpar</button>
+      <button class="btn btn-secondary" onclick="randomHex()">🎲 Aleatório</button>
+    </div>
+  </div>
+
+  <div class="card" id="hex-anim-card" style="display:none">
+    <div id="hex-arena" class="drow-wrap"></div>
+    <div id="hex-overflow-info" style="margin-top:8px"></div>
+    <div style="height:10px"></div>
+    <h3>Log de operações</h3>
+    <div class="slog" id="hex-log"></div>
+  </div>
+</div>
+
+<!-- ══════════ ABA 3 — CIRCUITOS ══════════ -->
+<div id="tab-circ" class="section">
+  <h2>Circuitos somadores</h2>
+
+  <!-- MEIO SOMADOR -->
+  <div class="card">
+    <h2>Meio somador (half adder)</h2>
+    <div class="info">∑ = A ⊕ B &nbsp;|&nbsp; Co = A · B &nbsp;— <strong>Sem carry in. Saídas: |Co| |∑| (MSB à esquerda)</strong></div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin:10px 0">
+      <div><label>A</label>
+        <div class="seg" id="ha-a-seg">
+          <button class="seg-btn active" onclick="setHA('a',0)">0</button>
+          <button class="seg-btn" onclick="setHA('a',1)">1</button>
+        </div>
+      </div>
+      <div><label>B</label>
+        <div class="seg" id="ha-b-seg">
+          <button class="seg-btn active" onclick="setHA('b',0)">0</button>
+          <button class="seg-btn" onclick="setHA('b',1)">1</button>
+        </div>
+      </div>
+      <div>
+        <label>Saídas (MSB→LSB)</label>
+        <div style="display:flex;gap:5px;align-items:center">
+          <div>
+            <div style="font-size:10px;color:var(--amber-d);text-align:center;font-weight:600">Co</div>
+            <div class="dcell d0" id="ha-co-cell">0</div>
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--green-d);text-align:center;font-weight:600">∑</div>
+            <div class="dcell d0" id="ha-sum-cell">0</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="cw">
+      <svg id="ha-svg" viewBox="0 0 520 200" width="100%" style="max-width:520px;display:block;margin:auto">
+        <!-- input wires A -->
+        <line id="hw-a-xor" class="wire" x1="50" y1="68" x2="170" y2="68" stroke="#cbd5e1"/>
+        <line id="hw-a-and1" class="wire" x1="50" y1="68" x2="50" y2="138" stroke="#cbd5e1"/>
+        <line id="hw-a-and2" class="wire" x1="50" y1="138" x2="170" y2="138" stroke="#cbd5e1"/>
+        <!-- input wires B -->
+        <line id="hw-b-xor" class="wire" x1="50" y1="92" x2="170" y2="92" stroke="#cbd5e1"/>
+        <line id="hw-b-and1" class="wire" x1="90" y1="92" x2="90" y2="158" stroke="#cbd5e1"/>
+        <line id="hw-b-and2" class="wire" x1="90" y1="158" x2="170" y2="158" stroke="#cbd5e1"/>
+        <!-- XOR gate shape -->
+        <path id="ha-xor-gate" d="M170,56 Q200,80 170,104 Q220,104 245,80 Q220,56 170,56Z" fill="#f8fafc" stroke="#64748b" stroke-width="1.8"/>
+        <path d="M167,56 Q192,80 167,104" fill="none" stroke="#64748b" stroke-width="1.5"/>
+        <text x="205" y="85" class="glabel" text-anchor="middle">XOR</text>
+        <!-- AND gate shape -->
+        <path id="ha-and-gate" d="M170,126 L170,170 Q215,170 215,148 Q215,126 170,126Z" fill="#f8fafc" stroke="#64748b" stroke-width="1.8"/>
+        <text x="192" y="152" class="glabel" text-anchor="middle">AND</text>
+        <!-- output wires -->
+        <line id="hw-xor-out" class="wire" x1="245" y1="80" x2="360" y2="80" stroke="#cbd5e1"/>
+        <line id="hw-and-out" class="wire wcarry" x1="215" y1="148" x2="360" y2="148" stroke="#e5e7eb"/>
+        <!-- input circles -->
+        <circle id="ha-na" class="inode lo" cx="50" cy="68"/>
+        <text id="ha-ta" x="50" y="72" text-anchor="middle" font-size="12" font-weight="700" fill="#64748b">A</text>
+        <circle id="ha-nb" class="inode lo" cx="50" cy="92"/>
+        <text id="ha-tb" x="50" y="96" text-anchor="middle" font-size="12" font-weight="700" fill="#64748b">B</text>
+        <!-- output circles: Co then ∑ (right side, Co below ∑ in circuit order but labeled) -->
+        <!-- ∑ output (XOR = LSB) -->
+        <circle id="ha-n-sum" class="onode lo" cx="370" cy="80"/>
+        <text x="370" y="84" text-anchor="middle" font-size="12" font-weight="700" fill="#64748b" id="ha-t-sum">∑</text>
+        <!-- Co output (AND = MSB carry) -->
+        <circle id="ha-n-co" class="onode lo" cx="370" cy="148"/>
+        <text x="370" y="152" text-anchor="middle" font-size="12" font-weight="700" fill="#64748b" id="ha-t-co">Co</text>
+        <!-- value labels -->
+        <text x="28" y="54" font-size="10" fill="#94a3b8">A=</text><text id="hv-a" x="40" y="54" font-size="11" font-weight="700" fill="#334155">0</text>
+        <text x="28" y="110" font-size="10" fill="#94a3b8">B=</text><text id="hv-b" x="40" y="110" font-size="11" font-weight="700" fill="#334155">0</text>
+        <text x="388" y="75" font-size="10" fill="#94a3b8">∑=</text><text id="hv-sum" x="400" y="75" font-size="11" font-weight="700" fill="#334155">0</text>
+        <text x="388" y="143" font-size="10" fill="#94a3b8">Co=</text><text id="hv-co" x="402" y="143" font-size="11" font-weight="700" fill="#334155">0</text>
+        <!-- truth table -->
+        <text x="425" y="30" font-size="11" fill="#94a3b8" font-weight="600">Tabela-verdade</text>
+        <text x="425" y="46" font-size="10" fill="#94a3b8">A B  Co ∑</text>
+        <text id="ha-tt0" x="425" y="61" font-size="10" fill="#cbd5e1">0 0 → 0  0</text>
+        <text id="ha-tt1" x="425" y="76" font-size="10" fill="#cbd5e1">0 1 → 0  1</text>
+        <text id="ha-tt2" x="425" y="91" font-size="10" fill="#cbd5e1">1 0 → 0  1</text>
+        <text id="ha-tt3" x="425" y="106" font-size="10" fill="#cbd5e1">1 1 → 1  0</text>
+      </svg>
+    </div>
+  </div>
+
+  <!-- SOMADOR COMPLETO — nível de portas lógicas -->
+  <div class="card">
+    <h2>Somador completo (full adder) — portas lógicas</h2>
+    <div class="info">∑ = A ⊕ B ⊕ Cin &nbsp;|&nbsp; Co = A·B + Cin·(A⊕B) &nbsp;— <strong>2×XOR + 2×AND + 1×OR</strong></div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin:10px 0">
+      <div><label>A</label><div class="seg" id="fa-a-seg"><button class="seg-btn active" onclick="setFA('a',0)">0</button><button class="seg-btn" onclick="setFA('a',1)">1</button></div></div>
+      <div><label>B</label><div class="seg" id="fa-b-seg"><button class="seg-btn active" onclick="setFA('b',0)">0</button><button class="seg-btn" onclick="setFA('b',1)">1</button></div></div>
+      <div><label>Cin</label><div class="seg" id="fa-cin-seg"><button class="seg-btn active" onclick="setFA('cin',0)">0</button><button class="seg-btn" onclick="setFA('cin',1)">1</button></div></div>
+      <div>
+        <label>Saídas (Co | ∑)</label>
+        <div style="display:flex;gap:5px;align-items:center">
+          <div><div style="font-size:10px;color:var(--amber-d);text-align:center;font-weight:600">Co</div><div class="dcell d0" id="fa-co-cell">0</div></div>
+          <div><div style="font-size:10px;color:var(--green-d);text-align:center;font-weight:600">∑</div><div class="dcell d0" id="fa-sum-cell">0</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="cw">
+      <!-- Gate-level full adder: 2×XOR, 2×AND, 1×OR -->
+      <svg id="fa-svg" viewBox="0 0 620 260" width="100%" style="max-width:620px;display:block;margin:auto">
+        <!-- ── XOR1: A⊕B ─────────────────────────── cx=180, cy=80 -->
+        <path id="fa-xor1" d="M155,62 Q185,80 155,98 Q205,98 230,80 Q205,62 155,62Z" fill="#f8fafc" stroke="#64748b" stroke-width="1.8"/>
+        <path d="M153,62 Q173,80 153,98" fill="none" stroke="#64748b" stroke-width="1.5"/>
+        <text x="195" y="84" text-anchor="middle" font-size="10" font-weight="700" fill="#1d4ed8">XOR</text>
+
+        <!-- ── AND1: A·B ─────────────────────────── cx=180, cy=170 -->
+        <path id="fa-and1" d="M155,152 L155,188 Q200,188 200,170 Q200,152 155,152Z" fill="#f8fafc" stroke="#64748b" stroke-width="1.8"/>
+        <text x="178" y="173" text-anchor="middle" font-size="10" font-weight="700" fill="#7c3aed">AND</text>
+
+        <!-- ── XOR2: (A⊕B)⊕Cin ───────────────────── cx=360, cy=80 -->
+        <path id="fa-xor2" d="M335,62 Q365,80 335,98 Q385,98 410,80 Q385,62 335,62Z" fill="#f8fafc" stroke="#64748b" stroke-width="1.8"/>
+        <path d="M333,62 Q353,80 333,98" fill="none" stroke="#64748b" stroke-width="1.5"/>
+        <text x="375" y="84" text-anchor="middle" font-size="10" font-weight="700" fill="#1d4ed8">XOR</text>
+
+        <!-- ── AND2: Cin·(A⊕B) ────────────────────── cx=360, cy=170 -->
+        <path id="fa-and2" d="M335,152 L335,188 Q380,188 380,170 Q380,152 335,152Z" fill="#f8fafc" stroke="#64748b" stroke-width="1.8"/>
+        <text x="358" y="173" text-anchor="middle" font-size="10" font-weight="700" fill="#7c3aed">AND</text>
+
+        <!-- ── OR: Co ─────────────────────────────── cx=510, cy=170 -->
+        <path id="fa-or" d="M478,148 Q510,170 478,192 Q522,192 545,170 Q522,148 478,148Z" fill="#f8fafc" stroke="#64748b" stroke-width="1.8"/>
+        <text x="512" y="174" text-anchor="middle" font-size="10" font-weight="700" fill="#d97706">OR</text>
+
+        <!-- ── INPUT WIRES ─────────────── -->
+        <!-- A line -->
+        <line id="fw-a" class="wire" x1="20" y1="68" x2="155" y2="68" stroke="#cbd5e1"/>
+        <line id="fw-ab" class="wire" x1="40" y1="68" x2="40" y2="158" stroke="#cbd5e1"/>
+        <line id="fw-ac" class="wire" x1="40" y1="158" x2="155" y2="158" stroke="#cbd5e1"/>
+        <!-- B line -->
+        <line id="fw-b" class="wire" x1="20" y1="90" x2="155" y2="90" stroke="#cbd5e1"/>
+        <line id="fw-bb" class="wire" x1="60" y1="90" x2="60" y2="182" stroke="#cbd5e1"/>
+        <line id="fw-bc" class="wire" x1="60" y1="182" x2="155" y2="182" stroke="#cbd5e1"/>
+        <!-- Cin line -->
+        <line id="fw-cin" class="wire wcarry" x1="20" y1="220" x2="310" y2="220" stroke="#e5e7eb"/>
+        <line id="fw-cinb" class="wire wcarry" x1="310" y1="220" x2="310" y2="178" stroke="#e5e7eb"/>
+        <line id="fw-cinc" class="wire wcarry" x1="310" y1="178" x2="335" y2="178" stroke="#e5e7eb"/>
+
+        <!-- XOR1 sum → XOR2 top input -->
+        <line id="fw-s1a" class="wire" x1="230" y1="80" x2="270" y2="80" stroke="#cbd5e1"/>
+        <line id="fw-s1b" class="wire" x1="270" y1="80" x2="270" y2="162" stroke="#cbd5e1"/>
+        <line id="fw-s1c" class="wire" x1="270" y1="162" x2="335" y2="162" stroke="#cbd5e1"/>
+        <!-- XOR1 sum → AND2 top (A⊕B branch) -->
+        <line id="fw-s1d" class="wire" x1="270" y1="80" x2="270" y2="68" stroke="#cbd5e1"/>
+        <line id="fw-s1e" class="wire" x1="270" y1="68" x2="335" y2="68" stroke="#cbd5e1"/>
+
+        <!-- AND1 out → OR bottom -->
+        <line id="fw-c1a" class="wire wcarry" x1="200" y1="170" x2="450" y2="170" stroke="#e5e7eb"/>
+        <line id="fw-c1b" class="wire wcarry" x1="450" y1="170" x2="450" y2="185" stroke="#e5e7eb"/>
+        <line id="fw-c1c" class="wire wcarry" x1="450" y1="185" x2="478" y2="185" stroke="#e5e7eb"/>
+
+        <!-- AND2 out → OR top -->
+        <line id="fw-c2a" class="wire wcarry" x1="380" y1="170" x2="460" y2="170" stroke="#e5e7eb"/>
+        <line id="fw-c2b" class="wire wcarry" x1="460" y1="170" x2="460" y2="158" stroke="#e5e7eb"/>
+        <line id="fw-c2c" class="wire wcarry" x1="460" y1="158" x2="478" y2="158" stroke="#e5e7eb"/>
+
+        <!-- XOR2 → ∑ output -->
+        <line id="fw-s2" class="wire" x1="410" y1="80" x2="580" y2="80" stroke="#cbd5e1"/>
+        <!-- OR → Co output -->
+        <line id="fw-co" class="wire wcarry" x1="545" y1="170" x2="580" y2="170" stroke="#e5e7eb"/>
+
+        <!-- ── INPUT NODES ── -->
+        <circle id="fa-na" class="inode lo" cx="20" cy="68"/>
+        <text id="fat-a" x="20" y="72" text-anchor="middle" font-size="11" font-weight="700" fill="#64748b">A</text>
+        <circle id="fa-nb" class="inode lo" cx="20" cy="90"/>
+        <text id="fat-b" x="20" y="94" text-anchor="middle" font-size="11" font-weight="700" fill="#64748b">B</text>
+        <circle id="fa-ncin" class="inode lo" cx="20" cy="220"/>
+        <text id="fat-cin" x="20" y="224" text-anchor="middle" font-size="10" font-weight="700" fill="#64748b">Ci</text>
+
+        <!-- ── OUTPUT NODES ── -->
+        <circle id="fa-nsum" class="onode lo" cx="588" cy="80"/>
+        <text x="588" y="84" text-anchor="middle" font-size="11" font-weight="700" fill="#64748b" id="fa-lsum">∑</text>
+        <circle id="fa-nco" class="onode lo" cx="588" cy="170"/>
+        <text x="588" y="174" text-anchor="middle" font-size="11" font-weight="700" fill="#64748b" id="fa-lco">Co</text>
+
+        <!-- ── INTERNAL SIGNAL DOTS (show intermediate values) ── -->
+        <circle id="fa-dot-s1" r="5" cx="230" cy="80" fill="#e2e8f0" stroke="#94a3b8" stroke-width="1"/>
+        <text id="fa-lbl-s1" x="230" y="58" text-anchor="middle" font-size="9" fill="#64748b">A⊕B=?</text>
+        <circle id="fa-dot-c1" r="5" cx="200" cy="170" fill="#fef3c7" stroke="#d97706" stroke-width="1"/>
+        <text id="fa-lbl-c1" x="200" y="210" text-anchor="middle" font-size="9" fill="#d97706">A·B=?</text>
+        <circle id="fa-dot-c2" r="5" cx="380" cy="170" fill="#fef3c7" stroke="#d97706" stroke-width="1"/>
+        <text id="fa-lbl-c2" x="380" y="210" text-anchor="middle" font-size="9" fill="#d97706">Ci·(A⊕B)=?</text>
+
+        <!-- ── VALUE LABELS ── -->
+        <text x="5" y="54" font-size="9" fill="#94a3b8">A=</text><text id="fv-a" x="16" y="54" font-size="10" font-weight="700" fill="#334155">0</text>
+        <text x="5" y="108" font-size="9" fill="#94a3b8">B=</text><text id="fv-b" x="16" y="108" font-size="10" font-weight="700" fill="#334155">0</text>
+        <text x="5" y="238" font-size="9" fill="#94a3b8">Ci=</text><text id="fv-cin" x="20" y="238" font-size="10" font-weight="700" fill="#334155">0</text>
+        <text x="596" y="74" font-size="9" fill="#94a3b8">∑=</text><text id="fv-sum" x="608" y="74" font-size="10" font-weight="700" fill="#334155">0</text>
+        <text x="596" y="164" font-size="9" fill="#94a3b8">Co=</text><text id="fv-co" x="612" y="164" font-size="10" font-weight="700" fill="#334155">0</text>
+        <text id="fa-tt" x="10" y="252" font-size="10" font-weight="600" fill="#2563eb">A·B·Ci → Co ∑ : 0·0·0 → 0 0</text>
+      </svg>
+    </div>
+  </div>
+
+  <!-- RIPPLE CARRY 4 BITS -->
+  <div class="card">
+    <h2>Somador ripple-carry de 4 bits</h2>
+    <div class="info">1 meio somador no bit 0 (LSB) + 3 somadores completos nos bits 1, 2 e 3 (MSB). O carry se propaga da direita para a esquerda.</div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin:12px 0;align-items:flex-end">
+      <div>
+        <label>A₃ A₂ A₁ A₀ (clique para alternar)</label>
+        <div style="display:flex;gap:5px" id="rc-a-row"></div>
+      </div>
+      <div>
+        <label>B₃ B₂ B₁ B₀</label>
+        <div style="display:flex;gap:5px" id="rc-b-row"></div>
+      </div>
+      <div>
+        <button class="btn btn-primary" onclick="animRipple()">▶ Simular</button>
+        <button class="btn btn-secondary" onclick="randomRC()" style="margin-left:6px">🎲</button>
+      </div>
+    </div>
+
+    <!-- Ripple carry SVG — enhanced with carry bubbles -->
+    <div class="cw">
+      <svg id="rc-svg" viewBox="0 0 580 220" width="100%" style="max-width:580px;display:block;margin:auto">
+        <!-- direction arrow -->
+        <text x="290" y="12" text-anchor="middle" font-size="9" fill="#94a3b8">← carry propaga da direita para a esquerda</text>
+        <line x1="400" y1="8" x2="180" y2="8" stroke="#d97706" stroke-width="1" stroke-dasharray="3"/>
+        <polygon points="180,5 174,8 180,11" fill="#d97706"/>
+
+        <!-- carry wire paths (connecting Co→Cin) -->
+        <line id="rc-wco0" class="wire wcarry" x1="460" y1="120" x2="460" y2="148" stroke="#e5e7eb"/>
+        <line id="rc-wco0b" class="wire wcarry" x1="460" y1="148" x2="360" y2="148" stroke="#e5e7eb"/>
+        <line id="rc-wco0c" class="wire wcarry" x1="360" y1="148" x2="360" y2="120" stroke="#e5e7eb"/>
+
+        <line id="rc-wco1a" class="wire wcarry" x1="340" y1="120" x2="340" y2="148" stroke="#e5e7eb"/>
+        <line id="rc-wco1b" class="wire wcarry" x1="340" y1="148" x2="240" y2="148" stroke="#e5e7eb"/>
+        <line id="rc-wco1c" class="wire wcarry" x1="240" y1="148" x2="240" y2="120" stroke="#e5e7eb"/>
+
+        <line id="rc-wco2a" class="wire wcarry" x1="220" y1="120" x2="220" y2="148" stroke="#e5e7eb"/>
+        <line id="rc-wco2b" class="wire wcarry" x1="220" y1="148" x2="120" y2="148" stroke="#e5e7eb"/>
+        <line id="rc-wco2c" class="wire wcarry" x1="120" y1="148" x2="120" y2="120" stroke="#e5e7eb"/>
+
+        <line id="rc-wco3" class="wire wcarry" x1="100" y1="120" x2="100" y2="148" stroke="#e5e7eb"/>
+        <line id="rc-wco3b" class="wire wcarry" x1="100" y1="148" x2="40" y2="148" stroke="#e5e7eb"/>
+        <line id="rc-wco3c" class="wire wcarry" x1="40" y1="148" x2="40" y2="170" stroke="#e5e7eb"/>
+
+        <!-- HA block bit0 -->
+        <rect id="rc-b0" x="440" y="60" width="80" height="60" rx="6" fill="#f0fdf4" stroke="#86efac" stroke-width="1.5"/>
+        <text x="480" y="85" text-anchor="middle" font-size="10" font-weight="700" fill="#15803d">HA</text>
+        <text x="480" y="97" text-anchor="middle" font-size="9" fill="#16a34a">bit 0 (LSB)</text>
+        <line id="rc-wa0" class="wire" x1="480" y1="25" x2="480" y2="60" stroke="#cbd5e1"/>
+        <line id="rc-wb0" class="wire" x1="500" y1="25" x2="500" y2="60" stroke="#cbd5e1"/>
+        <line id="rc-ws0" class="wire" x1="480" y1="120" x2="480" y2="175" stroke="#cbd5e1"/>
+        <!-- Cin=0 fixed label -->
+        <text x="542" y="126" font-size="8" fill="#94a3b8">Cin=0</text>
+
+        <!-- FA block bit1 -->
+        <rect id="rc-b1" x="320" y="60" width="80" height="60" rx="6" fill="#f0f4ff" stroke="#93b5f7" stroke-width="1.5"/>
+        <text x="360" y="85" text-anchor="middle" font-size="10" font-weight="700" fill="#2563eb">FA</text>
+        <text x="360" y="97" text-anchor="middle" font-size="9" fill="#3b82f6">bit 1</text>
+        <line id="rc-wa1" class="wire" x1="360" y1="25" x2="360" y2="60" stroke="#cbd5e1"/>
+        <line id="rc-wb1" class="wire" x1="380" y1="25" x2="380" y2="60" stroke="#cbd5e1"/>
+        <line id="rc-ws1" class="wire" x1="360" y1="120" x2="360" y2="175" stroke="#cbd5e1"/>
+
+        <!-- FA block bit2 -->
+        <rect id="rc-b2" x="200" y="60" width="80" height="60" rx="6" fill="#f0f4ff" stroke="#93b5f7" stroke-width="1.5"/>
+        <text x="240" y="85" text-anchor="middle" font-size="10" font-weight="700" fill="#2563eb">FA</text>
+        <text x="240" y="97" text-anchor="middle" font-size="9" fill="#3b82f6">bit 2</text>
+        <line id="rc-wa2" class="wire" x1="240" y1="25" x2="240" y2="60" stroke="#cbd5e1"/>
+        <line id="rc-wb2" class="wire" x1="260" y1="25" x2="260" y2="60" stroke="#cbd5e1"/>
+        <line id="rc-ws2" class="wire" x1="240" y1="120" x2="240" y2="175" stroke="#cbd5e1"/>
+
+        <!-- FA block bit3 (MSB) -->
+        <rect id="rc-b3" x="80" y="60" width="80" height="60" rx="6" fill="#f0f4ff" stroke="#93b5f7" stroke-width="1.5"/>
+        <text x="120" y="85" text-anchor="middle" font-size="10" font-weight="700" fill="#2563eb">FA</text>
+        <text x="120" y="97" text-anchor="middle" font-size="9" fill="#3b82f6">bit 3 (MSB)</text>
+        <line id="rc-wa3" class="wire" x1="120" y1="25" x2="120" y2="60" stroke="#cbd5e1"/>
+        <line id="rc-wb3" class="wire" x1="140" y1="25" x2="140" y2="60" stroke="#cbd5e1"/>
+        <line id="rc-ws3" class="wire" x1="120" y1="120" x2="120" y2="175" stroke="#cbd5e1"/>
+
+        <!-- ── CARRY BUBBLE LABELS on the carry wires ── -->
+        <!-- Co0→Cin1 bubble -->
+        <rect id="rc-cbg0" x="390" y="141" width="42" height="14" rx="7" fill="#fef3c7" stroke="#d97706" stroke-width="1" opacity="0"/>
+        <text id="rc-cbt0" x="411" y="152" text-anchor="middle" font-size="9" font-weight="700" fill="#92400e" opacity="0">Co=0</text>
+        <!-- Co1→Cin2 bubble -->
+        <rect id="rc-cbg1" x="270" y="141" width="42" height="14" rx="7" fill="#fef3c7" stroke="#d97706" stroke-width="1" opacity="0"/>
+        <text id="rc-cbt1" x="291" y="152" text-anchor="middle" font-size="9" font-weight="700" fill="#92400e" opacity="0">Co=0</text>
+        <!-- Co2→Cin3 bubble -->
+        <rect id="rc-cbg2" x="150" y="141" width="42" height="14" rx="7" fill="#fef3c7" stroke="#d97706" stroke-width="1" opacity="0"/>
+        <text id="rc-cbt2" x="171" y="152" text-anchor="middle" font-size="9" font-weight="700" fill="#92400e" opacity="0">Co=0</text>
+        <!-- Co3 final carry bubble -->
+        <rect id="rc-cbg3" x="18" y="155" width="46" height="14" rx="7" fill="#fef3c7" stroke="#d97706" stroke-width="1" opacity="0"/>
+        <text id="rc-cbt3" x="41" y="166" text-anchor="middle" font-size="9" font-weight="700" fill="#92400e" opacity="0">Cout=0</text>
+
+        <!-- column labels top -->
+        <text x="480" y="20" font-size="9" fill="#64748b" text-anchor="middle">A₀ B₀</text>
+        <text x="370" y="20" font-size="9" fill="#64748b" text-anchor="middle">A₁ B₁</text>
+        <text x="250" y="20" font-size="9" fill="#64748b" text-anchor="middle">A₂ B₂</text>
+        <text x="130" y="20" font-size="9" fill="#64748b" text-anchor="middle">A₃ B₃</text>
+
+        <!-- input value dots -->
+        <circle id="rc-da0" cx="480" cy="25" r="8" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5"/>
+        <text id="rc-ta0" x="480" y="29" text-anchor="middle" font-size="9" font-weight="700" fill="#64748b">0</text>
+        <circle id="rc-db0" cx="500" cy="25" r="8" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5"/>
+        <text id="rc-tb0" x="500" y="29" text-anchor="middle" font-size="9" font-weight="700" fill="#64748b">0</text>
+
+        <circle id="rc-da1" cx="360" cy="25" r="8" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5"/>
+        <text id="rc-ta1" x="360" y="29" text-anchor="middle" font-size="9" font-weight="700" fill="#64748b">0</text>
+        <circle id="rc-db1" cx="380" cy="25" r="8" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5"/>
+        <text id="rc-tb1" x="380" y="29" text-anchor="middle" font-size="9" font-weight="700" fill="#64748b">0</text>
+
+        <circle id="rc-da2" cx="240" cy="25" r="8" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5"/>
+        <text id="rc-ta2" x="240" y="29" text-anchor="middle" font-size="9" font-weight="700" fill="#64748b">0</text>
+        <circle id="rc-db2" cx="260" cy="25" r="8" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5"/>
+        <text id="rc-tb2" x="260" y="29" text-anchor="middle" font-size="9" font-weight="700" fill="#64748b">0</text>
+
+        <circle id="rc-da3" cx="120" cy="25" r="8" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5"/>
+        <text id="rc-ta3" x="120" y="29" text-anchor="middle" font-size="9" font-weight="700" fill="#64748b">0</text>
+        <circle id="rc-db3" cx="140" cy="25" r="8" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5"/>
+        <text id="rc-tb3" x="140" y="29" text-anchor="middle" font-size="9" font-weight="700" fill="#64748b">0</text>
+
+        <!-- result dots bottom -->
+        <circle id="rc-rs0" cx="480" cy="180" r="10" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5"/>
+        <text id="rc-ts0" x="480" y="184" text-anchor="middle" font-size="10" font-weight="700" fill="#64748b">?</text>
+        <circle id="rc-rs1" cx="360" cy="180" r="10" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5"/>
+        <text id="rc-ts1" x="360" y="184" text-anchor="middle" font-size="10" font-weight="700" fill="#64748b">?</text>
+        <circle id="rc-rs2" cx="240" cy="180" r="10" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5"/>
+        <text id="rc-ts2" x="240" y="184" text-anchor="middle" font-size="10" font-weight="700" fill="#64748b">?</text>
+        <circle id="rc-rs3" cx="120" cy="180" r="10" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5"/>
+        <text id="rc-ts3" x="120" y="184" text-anchor="middle" font-size="10" font-weight="700" fill="#64748b">?</text>
+        <circle id="rc-rsc" cx="40" cy="180" r="10" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5"/>
+        <text id="rc-tsc" x="40" y="184" text-anchor="middle" font-size="10" font-weight="700" fill="#94a3b8">?</text>
+
+        <!-- result labels -->
+        <text x="480" y="200" text-anchor="middle" font-size="8" fill="#64748b">S₀</text>
+        <text x="360" y="200" text-anchor="middle" font-size="8" fill="#64748b">S₁</text>
+        <text x="240" y="200" text-anchor="middle" font-size="8" fill="#64748b">S₂</text>
+        <text x="120" y="200" text-anchor="middle" font-size="8" fill="#64748b">S₃</text>
+        <text x="40" y="200" text-anchor="middle" font-size="8" fill="#d97706">Cout</text>
+      </svg>
+    </div>
+
+    <div id="rc-result-area" style="margin-top:10px"></div>
+    <div style="height:8px"></div>
+    <div class="slog" id="rc-log" style="max-height:160px"></div>
+  </div>
+</div>
+
+<!-- ══════════ ABA 4 — COMPLEMENTO DE 2 ══════════ -->
+<div id="tab-c2" class="section">
+  <h2>Complemento de 2 — passo a passo</h2>
+  <p style="color:var(--text2);font-size:13px;margin-bottom:14px">
+    Digite um número binário e acompanhe visualmente a obtenção do complemento de 1 (inversão bit a bit) e do complemento de 2 (C1 + 1).
+  </p>
+  <div class="card">
+    <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end">
+      <div>
+        <h3>Largura de palavra</h3>
+        <div class="seg" id="c2-bits-seg">
+          <button class="seg-btn" onclick="setC2Bits(2)">2 bits</button>
+          <button class="seg-btn" onclick="setC2Bits(4)">4 bits</button>
+          <button class="seg-btn active" onclick="setC2Bits(8)">8 bits</button>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;align-items:flex-end">
+      <div style="flex:1;min-width:160px">
+        <label>Número binário (entrada)</label>
+        <input type="text" id="c2-input" value="01001100" style="width:100%;font-size:16px;letter-spacing:3px" oninput="validateC2Input()">
+        <div style="font-size:11px;color:var(--text3);margin-top:2px" id="c2-dec-hint"></div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="animC2()">▶ Animar</button>
+      <button class="btn btn-secondary" onclick="randomC2()">🎲 Aleatório</button>
+      <button class="btn btn-secondary" onclick="resetC2()">↺ Limpar</button>
+    </div>
+  </div>
+
+  <div id="c2-anim-wrap" style="display:none">
+    <!-- Step A: original -->
+    <div class="card" id="c2-s0">
+      <h3 style="color:var(--blue-d)">Número original</h3>
+      <div id="c2-s0-body" class="drow-wrap" style="margin-top:8px"></div>
+    </div>
+    <!-- Step B: C1 (invert) -->
+    <div class="card" id="c2-s1" style="display:none">
+      <h3 style="color:#be185d">Passo 1 — Complemento de 1 (NOT bit a bit)</h3>
+      <div class="info warn" style="margin-bottom:10px">Cada bit é invertido: <strong>0 → 1</strong> e <strong>1 → 0</strong>. Isso é a operação lógica NOT aplicada a cada bit.</div>
+      <div id="c2-s1-body" class="drow-wrap"></div>
+      <div id="c2-s1-arrow" style="text-align:center;font-size:13px;color:var(--text2);margin-top:8px"></div>
+      <div class="btn-row"><button class="btn btn-primary" onclick="c2GoStep(2)">Próximo: somar 1 →</button></div>
+    </div>
+    <!-- Step C: C2 (+1) -->
+    <div class="card" id="c2-s2" style="display:none">
+      <h3 style="color:var(--green-d)">Passo 2 — Complemento de 2 (C1 + 1)</h3>
+      <div class="info" style="margin-bottom:10px">Somamos 1 ao complemento de 1. O carry se propaga normalmente. Qualquer carry além dos N bits é descartado.</div>
+      <div id="c2-s2-body" class="drow-wrap"></div>
+      <div id="c2-s2-result" style="margin-top:10px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ ABA 5 — SUBTRAÇÃO C2 ══════════ -->
+<div id="tab-sub" class="section">
+  <h2>Subtração com complemento de 2</h2>
+  <p style="color:var(--text2);font-size:13px;margin-bottom:14px">
+    A operação A − B é realizada somando A com o complemento de 2 de B.
+    O carry extra (além dos N bits) é <strong>descartado</strong>. O MSB do resultado indica o sinal.
+  </p>
+
+  <div class="card">
+    <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end">
+      <div>
+        <h3>Largura de palavra</h3>
+        <div class="seg" id="sub-bits-seg">
+          <button class="seg-btn" onclick="setSubBits(2)">2 bits</button>
+          <button class="seg-btn" onclick="setSubBits(4)">4 bits</button>
+          <button class="seg-btn active" onclick="setSubBits(8)">8 bits</button>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:12px">
+      <div style="flex:1;min-width:130px">
+        <label>A — minuendo (decimal)</label>
+        <input type="number" id="sub-a" value="9" style="max-width:120px">
+      </div>
+      <div style="flex:1;min-width:130px">
+        <label>B — subtraendo (decimal)</label>
+        <input type="number" id="sub-b" value="4" style="max-width:120px">
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="startSub()">▶ Iniciar</button>
+      <button class="btn btn-secondary" onclick="randomSub()">🎲 Aleatório</button>
+      <button class="btn btn-secondary" onclick="resetSub()">↺ Recomeçar</button>
+    </div>
+  </div>
+
+  <div id="sub-steps-wrap" style="display:none">
+    <!-- Step 1 -->
+    <div class="card" id="sub-s1" style="display:none">
+      <h2>Passo 1 — Representar A e B em binário</h2>
+      <div class="info" style="margin-bottom:8px">A subtração <strong>A − B</strong> será realizada como uma soma: <strong>A + (−B)</strong>, onde <strong>−B</strong> é obtido pelo complemento de 2 de B.</div>
+      <div id="sub-s1-body"></div>
+      <div class="btn-row"><button class="btn btn-primary" onclick="subGoStep(2)">Próximo: inverter B →</button></div>
+    </div>
+    <!-- Step 2 -->
+    <div class="card" id="sub-s2" style="display:none">
+      <h2>Passo 2 — Inverter os bits de B (complemento de 1)</h2>
+      <div class="info warn">Aplicamos a função lógica NOT bit a bit em B. Cada <strong>0 vira 1</strong> e cada <strong>1 vira 0</strong>.</div>
+      <div id="sub-s2-body" style="margin-top:10px"></div>
+      <div class="btn-row"><button class="btn btn-primary" onclick="subGoStep(3)">Próximo: somar 1 →</button></div>
+    </div>
+    <!-- Step 3 -->
+    <div class="card" id="sub-s3" style="display:none">
+      <h2>Passo 3 — Somar 1 ao complemento de 1 → complemento de 2 de B</h2>
+      <div class="info warn">Somamos 1 ao valor invertido. Isso completa a formação do complemento de 2, que equivale a −B.</div>
+      <div id="sub-s3-body" style="margin-top:10px"></div>
+      <div class="btn-row"><button class="btn btn-primary" onclick="subGoStep(4)">Próximo: soma final →</button></div>
+    </div>
+    <!-- Step 4 -->
+    <div class="card" id="sub-s4" style="display:none">
+      <h2>Passo 4 — Somar A + complemento de 2 de B</h2>
+      <div class="info">O carry extra além dos N bits é <strong>descartado</strong> (✕). O MSB indica o sinal do resultado.</div>
+      <div id="sub-s4-body" style="margin-top:10px"></div>
+      <div class="btn-row"><button class="btn btn-primary" onclick="subGoStep(5)">Próximo: resultado →</button></div>
+    </div>
+    <!-- Step 5 -->
+    <div class="card" id="sub-s5" style="display:none">
+      <h2>Passo 5 — Interpretar resultado</h2>
+      <div id="sub-s5-body"></div>
+    </div>
+  </div>
+</div>
+
+<div style="height:40px"></div>
+
+<script>
+// ═══════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════
+let animRunning=false;
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const toBin=(n,b)=>{ if(n<0)n=(1<<b)+n; return n.toString(2).padStart(b,'0'); };
+const fromBin=s=>parseInt(s,2);
+const toHex=(n,d)=>n.toString(16).toUpperCase().padStart(d,'0');
+const fromHex=s=>parseInt(s,16);
+const HC='0123456789ABCDEF';
+
+function showTab(t){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+t).classList.add('active');
+  document.querySelectorAll('.tab').forEach(b=>{ if(b.getAttribute('onclick').includes("'"+t+"'"))b.classList.add('active'); });
+}
+
+function log(id,html,cls=''){
+  const el=document.getElementById(id);
+  const d=document.createElement('div');
+  d.innerHTML=html; if(cls)d.className=cls;
+  el.appendChild(d); el.scrollTop=el.scrollHeight;
+}
+function clearLog(id){ document.getElementById(id).innerHTML=''; }
+
+function flyCarry(x,y){
+  const f=document.createElement('div');
+  f.className='carry-fly'; f.textContent='carry!';
+  f.style.left=x+'px'; f.style.top=y+'px';
+  document.body.appendChild(f);
+  setTimeout(()=>f.remove(),950);
+}
+
+// speed labels
+['bin','hex'].forEach(k=>{
+  const sl=document.getElementById(k+'-speed');
+  if(sl) sl.addEventListener('input',function(){
+    const v=+this.value;
+    document.getElementById(k+'-speed-lbl').textContent=v<=300?'rápido':v>=900?'lento':'médio';
+  });
+});
+
+// ═══════════════════════════════════════════════
+// BUILD DIGIT CELL HELPERS
+// ═══════════════════════════════════════════════
+function makeDCell(val,id,extra=''){
+  const d=document.createElement('div');
+  d.className='dcell '+(val==='1'||val===1?'d1':'d0')+' '+extra;
+  d.textContent=val; if(id)d.id=id;
+  return d;
+}
+function makeRow(label,cells,op=''){
+  const row=document.createElement('div');
+  row.className='drow';
+  // op symbol LEFT of numbers
+  const ops=document.createElement('div');
+  ops.className='op-symbol'; ops.textContent=op;
+  row.appendChild(ops);
+  const lbl=document.createElement('div');
+  lbl.className='drow-label'; lbl.textContent=label;
+  row.appendChild(lbl);
+  cells.forEach(c=>row.appendChild(c));
+  return row;
+}
+
+// ═══════════════════════════════════════════════
+// ABA 1 — SOMA BINÁRIA
+// ═══════════════════════════════════════════════
+let binBits=8;
+
+function setBinBits(n){
+  binBits=n;
+  document.querySelectorAll('#bin-bits-seg .seg-btn').forEach(b=>b.classList.toggle('active',b.textContent.includes(n)));
+  const max=(1<<n)-1;
+  document.getElementById('bin-a').value=toBin(Math.floor(Math.random()*max),n);
+  document.getElementById('bin-b').value=toBin(Math.floor(Math.random()*max),n);
+  validateBin('a'); validateBin('b');
+}
+
+function validateBin(w){
+  const v=document.getElementById('bin-'+w).value.replace(/[^01]/g,'');
+  document.getElementById('bin-'+w).value=v;
+  document.getElementById('bin-'+w+'-dec').textContent=v?'= '+fromBin(v)+' (decimal)':'';
+}
+
+function randomBin(){
+  const max=(1<<binBits)-1;
+  document.getElementById('bin-a').value=toBin(Math.floor(Math.random()*max),binBits);
+  document.getElementById('bin-b').value=toBin(Math.floor(Math.random()*max),binBits);
+  validateBin('a'); validateBin('b');
+}
+
+function resetBin(){
+  document.getElementById('bin-anim-card').style.display='none';
+  clearLog('bin-log');
+  animRunning=false;
+}
+
+async function startBinAnim(){
+  if(animRunning)return;
+  const rawA=document.getElementById('bin-a').value.padStart(binBits,'0').slice(-binBits);
+  const rawB=document.getElementById('bin-b').value.padStart(binBits,'0').slice(-binBits);
+  if(!/^[01]+$/.test(rawA)||!/^[01]+$/.test(rawB)){alert('Use apenas 0 e 1');return;}
+
+  animRunning=true;
+  const card=document.getElementById('bin-anim-card');
+  card.style.display='block';
+  clearLog('bin-log');
+  document.getElementById('bin-overflow-info').innerHTML='';
+
+  const aArr=rawA.split('');
+  const bArr=rawB.split('');
+  const resArr=new Array(binBits).fill('?');
+  const delay=+document.getElementById('bin-speed').value;
+  const arena=document.getElementById('bin-arena');
+  arena.innerHTML='';
+
+  // carry row
+  const carryRowDiv=document.createElement('div'); carryRowDiv.className='drow';
+  const carryOp=document.createElement('div'); carryOp.className='op-symbol'; carryOp.textContent='';
+  const carryLbl=document.createElement('div'); carryLbl.className='drow-label'; carryLbl.textContent='carry';
+  carryRowDiv.appendChild(carryOp); carryRowDiv.appendChild(carryLbl);
+  // extra carry-out cell + one per bit
+  const cOutCell=makeDCell('',`bc_out`,'');
+  cOutCell.style.borderStyle='dashed'; cOutCell.style.opacity='0.25'; cOutCell.style.fontSize='10px';
+  carryRowDiv.appendChild(cOutCell);
+  for(let i=0;i<binBits;i++){
+    const c=makeDCell('',`bc_${i}`,''); c.style.opacity='0.15'; c.style.borderStyle='dashed'; c.style.fontSize='11px';
+    carryRowDiv.appendChild(c);
+  }
+  arena.appendChild(carryRowDiv);
+
+  // row A
+  const aCells=[]; const aExtraCell=makeDCell('','ba_out',''); aExtraCell.style.opacity='0.2'; aExtraCell.style.borderStyle='dashed';
+  aCells.push(aExtraCell);
+  aArr.forEach((v,i)=>{ const c=makeDCell(v,`ba_${i}`,''); aCells.push(c); });
+  arena.appendChild(makeRow('A',aCells,''));
+
+  // row B
+  const bCells=[]; const bExtraCell=makeDCell('','bb_out',''); bExtraCell.style.opacity='0.2'; bExtraCell.style.borderStyle='dashed';
+  bCells.push(bExtraCell);
+  bArr.forEach((v,i)=>{ const c=makeDCell(v,`bb_${i}`,''); bCells.push(c); });
+  arena.appendChild(makeRow('B',bCells,'+'));
+
+  // divider
+  const dv=document.createElement('div'); dv.className='divider-line'; arena.appendChild(dv);
+
+  // result row
+  const rCells=[]; const rCarryCell=makeDCell('C',`br_out`,''); rCarryCell.style.borderStyle='dashed'; rCarryCell.style.opacity='0.2'; rCells.push(rCarryCell);
+  for(let i=0;i<binBits;i++){ const c=makeDCell('?',`br_${i}`,''); rCells.push(c); }
+  arena.appendChild(makeRow('=',rCells,''));
+
+  // animate
+  let carry=0;
+  for(let col=binBits-1;col>=0;col--){
+    const aB=+aArr[col], bB=+bArr[col];
+    const aBitEl=document.getElementById(`ba_${col}`);
+    const bBitEl=document.getElementById(`bb_${col}`);
+    aBitEl.classList.add('dhigh'); bBitEl.classList.add('dhigh');
+    setTimeout(()=>{ aBitEl.classList.remove('dhigh'); bBitEl.classList.remove('dhigh'); },600);
+
+    const sum=aB+bB+carry;
+    const bit=sum%2;
+    const newCarry=Math.floor(sum/2);
+    const colPos=binBits-1-col;
+
+    log('bin-log',`Coluna ${colPos+1} (bit ${colPos}): ${aB} + ${bB} + carry(${carry}) = ${sum} → dígito: <b>${bit}</b>${newCarry?' <span class="cmsg">→ carry = 1!</span>':''}`,newCarry?'cmsg':'');
+    await sleep(delay);
+
+    const rCell=document.getElementById(`br_${col}`);
+    rCell.textContent=bit; rCell.className='dcell dresult';
+
+    if(newCarry){
+      // show carry in next column cell
+      const nextCol=col-1;
+      if(nextCol>=0){
+        const cc=document.getElementById(`bc_${nextCol}`);
+        cc.textContent='1'; cc.className='dcell dcarry'; cc.style.opacity='1'; cc.style.borderStyle='solid';
+        const r=cc.getBoundingClientRect();
+        flyCarry(r.left+r.width/2-20, r.top-10);
+      } else {
+        const cc=document.getElementById(`bc_out`);
+        cc.textContent='1'; cc.className='dcell dcarry'; cc.style.opacity='1'; cc.style.borderStyle='solid';
+        const r=cc.getBoundingClientRect();
+        flyCarry(r.left+r.width/2-20, r.top-10);
+      }
+    }
+    carry=newCarry;
+    await sleep(delay/3);
+  }
+
+  // final carry bit
+  const rCarry=document.getElementById('br_out');
+  const nBits=binBits; // N data bits
+  if(carry){
+    rCarry.textContent='1'; rCarry.className='dcell doverflow';
+    rCarry.style.opacity='1'; rCarry.style.borderStyle='solid';
+    document.getElementById('bin-overflow-info').innerHTML=
+      `<div class="info danger">⚠ O carry final gerou um <strong>${nBits+1}.º bit</strong> — além da capacidade de <strong>${nBits} bits</strong> do barramento. Em um processador de ${nBits} bits, o flag <strong>CARRY</strong> é ativado e o resultado truncado nos ${nBits} bits pode ser incorreto se tratado como inteiro sem sinal.</div>`;
+    log('bin-log',`<span class="emsg">⚠ CARRY OUT = 1 — overflow! Resultado não cabe em ${nBits} bits sem sinal.</span>`,'emsg');
+  } else {
+    rCarry.style.opacity='0.2'; rCarry.style.borderStyle='dashed';
+    document.getElementById('bin-overflow-info').innerHTML=`<div class="info success">✓ Sem overflow — resultado cabe em ${nBits} bits.</div>`;
+  }
+
+  const aV=fromBin(rawA), bV=fromBin(rawB);
+  log('bin-log',`✓ ${aV} + ${bV} = ${aV+bV} (decimal) = ${(aV+bV).toString(2).padStart(nBits+1,'0')} (binário)`,'ok');
+  animRunning=false;
+}
+
+// ═══════════════════════════════════════════════
+// ABA 2 — SOMA HEXADECIMAL
+// ═══════════════════════════════════════════════
+let hexDig=3;
+
+function setHexDig(n){
+  hexDig=n;
+  document.querySelectorAll('#hex-bits-seg .seg-btn').forEach(b=>b.classList.toggle('active',b.textContent.trim()==String(n)));
+  const max=Math.pow(16,n)-1;
+  document.getElementById('hex-a').value=toHex(Math.floor(Math.random()*max),n);
+  document.getElementById('hex-b').value=toHex(Math.floor(Math.random()*max),n);
+  validateHex('a'); validateHex('b');
+}
+
+function validateHex(w){
+  const v=document.getElementById('hex-'+w).value.toUpperCase().replace(/[^0-9A-F]/g,'');
+  document.getElementById('hex-'+w).value=v;
+  if(v) document.getElementById('hex-'+w+'-dec').textContent='= '+fromHex(v)+' (decimal)';
+}
+
+function randomHex(){
+  const max=Math.pow(16,hexDig)-1;
+  document.getElementById('hex-a').value=toHex(Math.floor(Math.random()*max),hexDig);
+  document.getElementById('hex-b').value=toHex(Math.floor(Math.random()*max),hexDig);
+  validateHex('a'); validateHex('b');
+}
+
+function resetHex(){ document.getElementById('hex-anim-card').style.display='none'; clearLog('hex-log'); animRunning=false; }
+
+function makeHCell(digit,decVal,id,cls=''){
+  const d=document.createElement('div');
+  d.className='hcell '+cls; if(id)d.id=id;
+  const hd=document.createElement('div'); hd.className='hd'; hd.textContent=digit;
+  const hv=document.createElement('div'); hv.className='hv'; hv.textContent='('+decVal+')';
+  d.appendChild(hd); d.appendChild(hv);
+  return d;
+}
+
+async function startHexAnim(){
+  if(animRunning)return;
+  const rawA=document.getElementById('hex-a').value.toUpperCase().padStart(hexDig,'0').slice(-hexDig);
+  const rawB=document.getElementById('hex-b').value.toUpperCase().padStart(hexDig,'0').slice(-hexDig);
+  if(!/^[0-9A-F]+$/.test(rawA)||!/^[0-9A-F]+$/.test(rawB)){alert('Use apenas 0-9 e A-F');return;}
+
+  animRunning=true;
+  const card=document.getElementById('hex-anim-card');
+  card.style.display='block';
+  clearLog('hex-log');
+  document.getElementById('hex-overflow-info').innerHTML='';
+
+  const aArr=rawA.split(''), bArr=rawB.split('');
+  const delay=+document.getElementById('hex-speed').value;
+  const arena=document.getElementById('hex-arena');
+  arena.innerHTML='';
+
+  // helper to make a hex row
+  function makeHRow(label,cells,op=''){
+    const row=document.createElement('div'); row.className='drow';
+    const ops=document.createElement('div'); ops.className='op-symbol'; ops.textContent=op;
+    row.appendChild(ops);
+    const lbl=document.createElement('div'); lbl.className='drow-label'; lbl.textContent=label;
+    row.appendChild(lbl);
+    cells.forEach(c=>row.appendChild(c));
+    return row;
+  }
+
+  // carry row
+  const carryCells=[];
+  const cExtra=makeHCell('','','hc_ext'); cExtra.style.opacity='0.2'; cExtra.style.borderStyle='dashed 1px';
+  carryCells.push(cExtra);
+  for(let i=0;i<hexDig;i++){ const c=makeHCell('','',`hc_${i}`); c.style.opacity='0.15'; c.style.border='2px dashed '+getComputedStyle(document.documentElement).getPropertyValue('--border'); carryCells.push(c); }
+  arena.appendChild(makeHRow('carry',carryCells,''));
+
+  // A row
+  const aCells=[]; const aExtra=makeHCell('','','ha_ext'); aExtra.style.opacity='0.2'; aCells.push(aExtra);
+  aArr.forEach((v,i)=>aCells.push(makeHCell(v,fromHex(v),`ha_${i}`,'h1')));
+  arena.appendChild(makeHRow('A',aCells,''));
+
+  // B row
+  const bCells=[]; const bExtra=makeHCell('','','hb_ext'); bExtra.style.opacity='0.2'; bCells.push(bExtra);
+  bArr.forEach((v,i)=>bCells.push(makeHCell(v,fromHex(v),`hb_${i}`,'h1')));
+  arena.appendChild(makeHRow('B',bCells,'+'));
+
+  // raw-sum row (shows sum before mod16)
+  const rawCells=[]; const rawExtra=makeHCell('','','hr_ext'); rawExtra.style.opacity='0.2'; rawCells.push(rawExtra);
+  for(let i=0;i<hexDig;i++) rawCells.push(makeHCell('?','?',`hr_${i}`));
+  const rawRow=makeHRow('bruto',rawCells,'');
+  rawRow.style.borderTop='1px dashed var(--amber)'; rawRow.style.paddingTop='2px';
+  // label style
+  rawRow.querySelector('.drow-label').style.color='var(--amber-d)';
+  rawRow.querySelector('.drow-label').style.fontSize='11px';
+  arena.appendChild(rawRow);
+
+  // divider
+  const dv=document.createElement('div'); dv.className='divider-line'; arena.appendChild(dv);
+
+  // result row
+  const resCells=[]; const resExtra=makeHCell('C','carry','hres_ext'); resExtra.style.opacity='0.2'; resExtra.style.borderStyle='dashed'; resCells.push(resExtra);
+  for(let i=0;i<hexDig;i++) resCells.push(makeHCell('?','?',`hres_${i}`));
+  arena.appendChild(makeHRow('=',resCells,''));
+
+  let carry=0;
+  for(let col=hexDig-1;col>=0;col--){
+    const aV=fromHex(aArr[col]), bV=fromHex(bArr[col]);
+    const aCell=document.getElementById(`ha_${col}`), bCell=document.getElementById(`hb_${col}`);
+    aCell.classList.add('hactive'); bCell.classList.add('hactive');
+
+    const raw=aV+bV+carry;
+    const digit=raw%16, newCarry=Math.floor(raw/16);
+    const digitChar=HC[digit];
+
+    // update raw-sum cell
+    const rawCell=document.getElementById(`hr_${col}`);
+    rawCell.querySelector('.hd').textContent=raw;
+    rawCell.querySelector('.hv').textContent=raw>=16?'≥16 →−16':'';
+    if(raw>=16) rawCell.className='hcell hover16'; else rawCell.className='hcell hresult';
+
+    log('hex-log',
+      `Coluna ${hexDig-col}: ${aArr[col]}(${aV}) + ${bArr[col]}(${bV}) + carry(${carry}) = ${raw}${raw>=16?' → '+raw+' − 16 = '+digit+' <span class="cmsg">carry=1!</span>':' → '+digit}`,
+      newCarry?'cmsg':''
+    );
+    await sleep(delay);
+
+    aCell.classList.remove('hactive'); bCell.classList.remove('hactive');
+
+    // result digit
+    const resCell=document.getElementById(`hres_${col}`);
+    resCell.querySelector('.hd').textContent=digitChar;
+    resCell.querySelector('.hv').textContent='('+digit+')';
+    resCell.className='hcell hresult';
+
+    if(newCarry){
+      const nextI=col-1;
+      if(nextI>=0){
+        const cc=document.getElementById(`hc_${nextI}`);
+        cc.querySelector('.hd').textContent='1'; cc.querySelector('.hv').textContent='';
+        cc.className='hcell hcarry'; cc.style.opacity='1';
+      } else {
+        const cc=document.getElementById(`hc_ext`);
+        cc.querySelector('.hd').textContent='1'; cc.querySelector('.hv').textContent='';
+        cc.className='hcell hcarry'; cc.style.opacity='1';
+      }
+      const rc=document.getElementById(`hres_${col}`); const r=rc.getBoundingClientRect();
+      flyCarry(r.left+r.width/2-20, r.top-12);
+    }
+    carry=newCarry;
+    await sleep(delay/3);
+  }
+
+  const resExtraEl=document.getElementById('hres_ext');
+  if(carry){
+    resExtraEl.querySelector('.hd').textContent='1'; resExtraEl.querySelector('.hv').textContent='carry!';
+    resExtraEl.className='hcell hcarry'; resExtraEl.style.opacity='1';
+    document.getElementById('hex-overflow-info').innerHTML=`<div class="info warn">⚠ Carry out = 1 — resultado usa ${hexDig+1} dígitos hexadecimais.</div>`;
+    log('hex-log',`<span class="emsg">⚠ Carry out! Resultado precisa de dígito extra.</span>`,'emsg');
+  } else {
+    resExtraEl.style.opacity='0.2';
+    document.getElementById('hex-overflow-info').innerHTML=`<div class="info success">✓ Sem overflow — resultado em ${hexDig} dígitos.</div>`;
+  }
+  const aV2=fromHex(rawA), bV2=fromHex(rawB);
+  log('hex-log',`✓ ${rawA}₁₆ + ${rawB}₁₆ = ${(aV2+bV2).toString(16).toUpperCase()}₁₆ (= ${aV2+bV2} decimal)`,'ok');
+  animRunning=false;
+}
+
+// ═══════════════════════════════════════════════
+// ABA 3 — CIRCUITOS
+// ═══════════════════════════════════════════════
+let haS={a:0,b:0}, faS={a:0,b:0,cin:0};
+let rcA=[1,0,1,1], rcB=[0,1,1,0];
+
+function segActive(id,v){ document.querySelectorAll('#'+id+' .seg-btn').forEach((b,i)=>b.classList.toggle('active',i===v)); }
+
+function wSet(id,on,isC=false){
+  const e=document.getElementById(id); if(!e)return;
+  e.classList.toggle('wactive',on);
+}
+
+function updateHA(){
+  const {a,b}=haS;
+  const sum=a^b, co=a&b;
+  // nodes
+  const setNode=(id,hi,isC=false)=>{
+    const e=document.getElementById(id); if(!e)return;
+    const base=e.classList.contains('inode')?'inode':'onode';
+    e.className=base+(hi?(isC?' hiC':' hi'):' lo');
+  };
+  setNode('ha-na',a); setNode('ha-nb',b);
+  setNode('ha-n-sum',sum); setNode('ha-n-co',co,true);
+  document.getElementById('hv-a').textContent=a;
+  document.getElementById('hv-b').textContent=b;
+  document.getElementById('hv-sum').textContent=sum;
+  document.getElementById('hv-co').textContent=co;
+  document.getElementById('ha-ta').setAttribute('fill',a?'#1d4ed8':'#64748b');
+  document.getElementById('ha-tb').setAttribute('fill',b?'#1d4ed8':'#64748b');
+  document.getElementById('ha-t-sum').setAttribute('fill',sum?'#15803d':'#64748b');
+  document.getElementById('ha-t-co').setAttribute('fill',co?'#d97706':'#64748b');
+  // wires
+  wSet('hw-a-xor',a); wSet('hw-a-and1',a); wSet('hw-a-and2',a);
+  wSet('hw-b-xor',b); wSet('hw-b-and1',b); wSet('hw-b-and2',b);
+  wSet('hw-xor-out',sum); wSet('hw-and-out',co,true);
+  // gates
+  document.getElementById('ha-xor-gate').style.fill=(a||b)?'#dbeafe':'#f8fafc';
+  document.getElementById('ha-and-gate').style.fill=(a&&b)?'#fef3c7':'#f8fafc';
+  // cells
+  const sc=document.getElementById('ha-sum-cell'); sc.textContent=sum; sc.className='dcell '+(sum?'dresult':'d0');
+  const cc=document.getElementById('ha-co-cell'); cc.textContent=co; cc.className='dcell '+(co?'dcarry':'d0');
+  // truth table
+  const row=a*2+b;
+  ['ha-tt0','ha-tt1','ha-tt2','ha-tt3'].forEach((id,i)=>{
+    const e=document.getElementById(id);
+    e.setAttribute('fill',i===row?'#2563eb':'#cbd5e1');
+    e.setAttribute('font-weight',i===row?'700':'400');
+  });
+}
+
+function setHA(w,v){ haS[w]=v; segActive('ha-'+w+'-seg',v); updateHA(); }
+
+function updateFA(){
+  const {a,b,cin}=faS;
+  const s1=a^b, c1=a&b, sum=s1^cin, c2v=s1&cin, co=c1|c2v;
+  // node states
+  const setN=(id,hi,isC=false)=>{
+    const e=document.getElementById(id); if(!e)return;
+    const base=e.classList.contains('inode')?'inode':'onode';
+    e.className=base+(hi?(isC?' hiC':' hi'):' lo');
+  };
+  setN('fa-na',a); setN('fa-nb',b); setN('fa-ncin',cin,true);
+  setN('fa-nsum',sum); setN('fa-nco',co,true);
+
+  // value labels
+  document.getElementById('fv-a').textContent=a;
+  document.getElementById('fv-b').textContent=b;
+  document.getElementById('fv-cin').textContent=cin;
+  document.getElementById('fv-sum').textContent=sum;
+  document.getElementById('fv-co').textContent=co;
+  document.getElementById('fa-tt').textContent=`A·B·Ci → Co ∑ : ${a}·${b}·${cin} → ${co} ${sum}`;
+
+  // internal signal labels
+  const ds1=document.getElementById('fa-dot-s1');
+  const dc1=document.getElementById('fa-dot-c1');
+  const dc2e=document.getElementById('fa-dot-c2');
+  if(ds1){ds1.style.fill=s1?'#dbeafe':'#e2e8f0'; ds1.style.stroke=s1?'#2563eb':'#94a3b8';}
+  if(dc1){dc1.style.fill=c1?'#fef3c7':'#e2e8f0'; dc1.style.stroke=c1?'#d97706':'#94a3b8';}
+  if(dc2e){dc2e.style.fill=c2v?'#fef3c7':'#e2e8f0'; dc2e.style.stroke=c2v?'#d97706':'#94a3b8';}
+  const ls1=document.getElementById('fa-lbl-s1');
+  const lc1=document.getElementById('fa-lbl-c1');
+  const lc2e=document.getElementById('fa-lbl-c2');
+  if(ls1){ls1.textContent=`A⊕B=${s1}`; ls1.setAttribute('fill',s1?'#1d4ed8':'#64748b');}
+  if(lc1){lc1.textContent=`A·B=${c1}`; lc1.setAttribute('fill',c1?'#d97706':'#64748b');}
+  if(lc2e){lc2e.textContent=`Ci·(A⊕B)=${c2v}`; lc2e.setAttribute('fill',c2v?'#d97706':'#64748b');}
+
+  // gate highlights
+  const g=(id,on,col)=>{ const e=document.getElementById(id); if(e) e.style.fill=on?col:'#f8fafc'; };
+  g('fa-xor1',(a||b),'#dbeafe');
+  g('fa-and1',(a&&b),'#ede9fe');
+  g('fa-xor2',sum?true:s1!==0||cin!==0,'#dbeafe');
+  g('fa-and2',c2v,'#ede9fe');
+  g('fa-or',co,'#fef3c7');
+
+  // wire states — new IDs
+  const w=(id,on,isC=false)=>wSet(id,on,isC);
+  w('fw-a',a); w('fw-ab',a); w('fw-ac',a);
+  w('fw-b',b); w('fw-bb',b); w('fw-bc',b);
+  w('fw-cin',cin,true); w('fw-cinb',cin,true); w('fw-cinc',cin,true);
+  w('fw-s1a',s1); w('fw-s1b',s1); w('fw-s1c',s1); w('fw-s1d',s1); w('fw-s1e',s1);
+  w('fw-c1a',c1,true); w('fw-c1b',c1,true); w('fw-c1c',c1,true);
+  w('fw-c2a',c2v,true); w('fw-c2b',c2v,true); w('fw-c2c',c2v,true);
+  w('fw-s2',sum); w('fw-co',co,true);
+
+  // output cells
+  const sc=document.getElementById('fa-sum-cell'); sc.textContent=sum; sc.className='dcell '+(sum?'dresult':'d0');
+  const cc=document.getElementById('fa-co-cell'); cc.textContent=co; cc.className='dcell '+(co?'dcarry':'d0');
+  // output node labels
+  const ls=document.getElementById('fa-lsum'); if(ls) ls.setAttribute('fill',sum?'#15803d':'#64748b');
+  const lco=document.getElementById('fa-lco'); if(lco) lco.setAttribute('fill',co?'#d97706':'#64748b');
+}
+
+function setFA(w,v){ faS[w]=v; segActive('fa-'+w+'-seg',v); updateFA(); }
+
+// RIPPLE CARRY
+function initRC(){
+  [0,1,2,3].forEach(i=>{
+    ['rc-a','rc-b'].forEach(pre=>{
+      const arr=pre==='rc-a'?rcA:rcB;
+      const row=document.getElementById(pre+'-row');
+      if(!row) return;
+      if(row.children.length===4){
+        row.children[i].textContent=arr[i];
+        row.children[i].className='dcell '+(arr[i]?'d1':'d0');
+        row.children[i].style.cursor='pointer';
+      }
+    });
+  });
+  // rebuild if empty
+  ['a','b'].forEach(w=>{
+    const arr=w==='a'?rcA:rcB;
+    const row=document.getElementById('rc-'+w+'-row');
+    if(!row||row.children.length) return;
+    arr.forEach((v,i)=>{
+      const c=makeDCell(v,`rc-${w}${i}`,''); c.style.cursor='pointer';
+      c.onclick=()=>{ arr[i]^=1; c.textContent=arr[i]; c.className='dcell '+(arr[i]?'d1':'d0'); };
+      row.appendChild(c);
+    });
+  });
+}
+
+function randomRC(){
+  rcA=[0,1,2,3].map(()=>Math.round(Math.random()));
+  rcB=[0,1,2,3].map(()=>Math.round(Math.random()));
+  ['a','b'].forEach(w=>{
+    const arr=w==='a'?rcA:rcB;
+    const row=document.getElementById('rc-'+w+'-row');
+    row.innerHTML='';
+    arr.forEach((v,i)=>{
+      const c=makeDCell(v,`rc-${w}${i}`,''); c.style.cursor='pointer';
+      c.onclick=()=>{ arr[i]^=1; c.textContent=arr[i]; c.className='dcell '+(arr[i]?'d1':'d0'); };
+      row.appendChild(c);
+    });
+  });
+  updateRCInputDots();
+}
+
+function updateRCInputDots(){
+  [0,1,2,3].forEach(i=>{
+    const mapI=3-i; // bit index in display (right=0, left=3)
+    const ai=document.getElementById(`rc-ta${i}`); if(ai){ ai.textContent=rcA[mapI]; }
+    const bi=document.getElementById(`rc-tb${i}`); if(bi){ bi.textContent=rcB[mapI]; }
+    const anode=document.getElementById(`rc-da${i}`);
+    const bnode=document.getElementById(`rc-db${i}`);
+    if(anode) anode.style.fill=rcA[mapI]?'#dbeafe':'#f1f5f9';
+    if(bnode) bnode.style.fill=rcB[mapI]?'#dbeafe':'#f1f5f9';
+  });
+}
+
+async function animRipple(){
+  if(animRunning)return;
+  animRunning=true;
+  clearLog('rc-log');
+  document.getElementById('rc-result-area').innerHTML='';
+
+  // reset carry bubbles
+  [0,1,2,3].forEach(i=>{
+    const bg=document.getElementById(`rc-cbg${i}`);
+    const bt=document.getElementById(`rc-cbt${i}`);
+    if(bg){bg.style.opacity='0';} if(bt){bt.style.opacity='0';}
+  });
+
+  // refresh input dots
+  [0,1,2,3].forEach(svgPos=>{
+    const arrIdx=3-svgPos;
+    const ta=document.getElementById(`rc-ta${svgPos}`); if(ta){ta.textContent=rcA[arrIdx]; ta.setAttribute('fill',rcA[arrIdx]?'#1d4ed8':'#64748b');}
+    const tb=document.getElementById(`rc-tb${svgPos}`); if(tb){tb.textContent=rcB[arrIdx]; tb.setAttribute('fill',rcB[arrIdx]?'#1d4ed8':'#64748b');}
+    const da=document.getElementById(`rc-da${svgPos}`); if(da) da.style.fill=rcA[arrIdx]?'#dbeafe':'#f1f5f9';
+    const db=document.getElementById(`rc-db${svgPos}`); if(db) db.style.fill=rcB[arrIdx]?'#dbeafe':'#f1f5f9';
+    // reset result dots
+    const rs=document.getElementById(`rc-rs${svgPos}`); if(rs){rs.style.fill='#f1f5f9'; rs.style.stroke='#cbd5e1';}
+    const ts=document.getElementById(`rc-ts${svgPos}`); if(ts){ts.textContent='?'; ts.setAttribute('fill','#64748b');}
+  });
+  const rsc=document.getElementById('rc-rsc'); if(rsc){rsc.style.fill='#f1f5f9'; rsc.style.stroke='#cbd5e1';}
+  const tsc=document.getElementById('rc-tsc'); if(tsc){tsc.textContent='?'; tsc.setAttribute('fill','#94a3b8');}
+  // reset wires
+  ['rc-wco0','rc-wco0b','rc-wco0c','rc-wco1a','rc-wco1b','rc-wco1c',
+   'rc-wco2a','rc-wco2b','rc-wco2c','rc-wco3','rc-wco3b','rc-wco3c',
+   'rc-wa0','rc-wb0','rc-ws0','rc-wa1','rc-wb1','rc-ws1',
+   'rc-wa2','rc-wb2','rc-ws2','rc-wa3','rc-wb3','rc-ws3'].forEach(id=>{
+    const e=document.getElementById(id); if(e) e.classList.remove('wactive');
+  });
+
+  const delay=700;
+  let carry=0;
+
+  for(let svgPos=0;svgPos<4;svgPos++){
+    const arrIdx=3-svgPos;
+    const a=rcA[arrIdx], b=rcB[arrIdx];
+    const isHA=svgPos===0;
+
+    // activate block
+    const block=document.getElementById(`rc-b${svgPos}`);
+    if(block){block.style.fill=isHA?'#bbf7d0':'#c7d2fe'; block.style.stroke=isHA?'#16a34a':'#4f46e5'; block.style.strokeWidth='2.5';}
+
+    // light input wires
+    wSet(`rc-wa${svgPos}`,a); wSet(`rc-wb${svgPos}`,b);
+
+    // show carry-in state (bubble from previous)
+    if(svgPos>0){
+      // light carry-in wire entering this block
+      ['a','b','c'].forEach(s=>{
+        const w=document.getElementById(`rc-wco${svgPos-1}${s==='a'?'a':s==='b'?'b':'c'}`);
+        if(w&&carry) w.classList.add('wactive');
+      });
+    }
+
+    log('rc-log',`<span style="color:var(--blue-d)">Bit ${svgPos}</span> [${isHA?'HA':'FA'}]: A${svgPos}=${a}, B${svgPos}=${b}, Cin=${carry}`);
+    await sleep(delay);
+
+    const sum=isHA?(a^b):(a^b^carry);
+    const newCarry=isHA?(a&b):((a&b)|(carry&(a^b)));
+
+    // light sum output wire
+    wSet(`rc-ws${svgPos}`,sum);
+
+    // update result dot
+    const rs=document.getElementById(`rc-rs${svgPos}`);
+    const ts=document.getElementById(`rc-ts${svgPos}`);
+    if(rs){rs.style.fill=sum?'#dcfce7':'#f8fafc'; rs.style.stroke=sum?'#16a34a':'#e2e8f0';}
+    if(ts){ts.textContent=sum; ts.setAttribute('fill',sum?'#15803d':'#94a3b8');}
+
+    // show carry bubble on the wire leading to next block
+    const bg=document.getElementById(`rc-cbg${svgPos}`);
+    const bt=document.getElementById(`rc-cbt${svgPos}`);
+    if(bg&&bt){
+      bg.style.fill=newCarry?'#fef3c7':'#f1f5f9';
+      bg.style.stroke=newCarry?'#d97706':'#cbd5e1';
+      bt.textContent=svgPos<3?`Co=${newCarry}`:`Cout=${newCarry}`;
+      bt.setAttribute('fill',newCarry?'#92400e':'#94a3b8');
+      bg.style.opacity='1'; bt.style.opacity='1';
+    }
+
+    // light carry-out wires
+    if(newCarry){
+      [`rc-wco${svgPos}`,`rc-wco${svgPos}b`,`rc-wco${svgPos}c`].forEach(id=>wSet(id,true,true));
+      log('rc-log',`  → ∑=${sum}, <span style="color:var(--amber-d);font-weight:700">Co=${newCarry} ← carry para bit ${svgPos+1}!</span>`);
+      const carryFlyEl=document.getElementById(`rc-cbg${svgPos}`);
+      if(carryFlyEl){const r=carryFlyEl.getBoundingClientRect(); flyCarry(r.left+20,r.top-5);}
+      await sleep(delay*0.6);
+    } else {
+      log('rc-log',`  → ∑=${sum}, Co=0`,'ok');
+    }
+
+    // deactivate block
+    if(block){block.style.fill=isHA?'#f0fdf4':'#f0f4ff'; block.style.stroke=isHA?'#86efac':'#93b5f7'; block.style.strokeWidth='1.5';}
+    carry=newCarry;
+    await sleep(delay*0.5);
+  }
+
+  // final carry out
+  const rsc2=document.getElementById('rc-rsc');
+  const tsc2=document.getElementById('rc-tsc');
+  if(rsc2){rsc2.style.fill=carry?'#fee2e2':'#f0fdf4'; rsc2.style.stroke=carry?'#dc2626':'#86efac';}
+  if(tsc2){tsc2.textContent=carry||'0'; tsc2.setAttribute('fill',carry?'#dc2626':'#16a34a');}
+
+  const aVal=parseInt(rcA.join(''),2), bVal=parseInt(rcB.join(''),2), total=aVal+bVal;
+  document.getElementById('rc-result-area').innerHTML=
+    `<div class="info ${carry?'danger':'success'}">${aVal} + ${bVal} = <strong>${total}</strong> = ${total.toString(2).padStart(5,'0')}₂${carry?' &nbsp;⚠ carry out = 1 → overflow em 4 bits!':' &nbsp;✓ sem overflow'}</div>`;
+  log('rc-log',`✓ Total: ${aVal} + ${bVal} = ${total}`,'ok');
+  animRunning=false;
+}
+
+// ═══════════════════════════════════════════════
+// ABA 4 — SUBTRAÇÃO COM C2
+// ═══════════════════════════════════════════════
+let subBits=8, subCtx={};
+
+function setSubBits(n){
+  subBits=n;
+  document.querySelectorAll('#sub-bits-seg .seg-btn').forEach(b=>b.classList.toggle('active',b.textContent.includes(n)));
+}
+
+function randomSub(){
+  const max=(1<<(subBits-1))-1;
+  document.getElementById('sub-a').value=Math.floor(Math.random()*(max+1));
+  document.getElementById('sub-b').value=Math.floor(Math.random()*(max+1));
+}
+
+function resetSub(){
+  document.getElementById('sub-steps-wrap').style.display='none';
+  ['sub-s1','sub-s2','sub-s3','sub-s4','sub-s5'].forEach(id=>{ document.getElementById(id).style.display='none'; });
+  animRunning=false;
+}
+
+function invertBits(s){ return s.split('').map(b=>b==='1'?'0':'1').join(''); }
+function addOneBin(s){
+  const a=s.split('').map(Number); let c=1;
+  for(let i=a.length-1;i>=0&&c;i--){ const t=a[i]+c; a[i]=t%2; c=Math.floor(t/2); }
+  return {result:a.join(''),carry:c};
+}
+
+function binAddFull(a,b,bits){
+  let carry=0; const res=[]; const carries=[];
+  for(let i=bits-1;i>=0;i--){
+    carries.unshift(carry);
+    const s=+a[i]+ +b[i]+carry; res.unshift(s%2); carry=Math.floor(s/2);
+  }
+  return {result:res.join(''),carry,carries};
+}
+
+// Build an animated digit row with label
+function buildDigitRow(label,bits,op,classes,ids){
+  const row=document.createElement('div'); row.className='drow';
+  const ops=document.createElement('div'); ops.className='op-symbol'; ops.textContent=op;
+  row.appendChild(ops);
+  const lbl=document.createElement('div'); lbl.className='drow-label'; lbl.textContent=label;
+  row.appendChild(lbl);
+  bits.split('').forEach((v,i)=>{
+    const c=document.createElement('div');
+    c.className='dcell '+(classes||((v==='1')?'d1':'d0'));
+    c.textContent=v; if(ids) c.id=ids[i];
+    row.appendChild(c);
+  });
+  return row;
+}
+
+function buildCarryRow(carries,bits){
+  const row=document.createElement('div'); row.className='drow';
+  const ops=document.createElement('div'); ops.className='op-symbol'; ops.textContent='';
+  row.appendChild(ops);
+  const lbl=document.createElement('div'); lbl.className='drow-label'; lbl.textContent='carry';
+  row.appendChild(lbl);
+  carries.forEach((v,i)=>{
+    const c=document.createElement('div');
+    c.className='dcell '+(v?'dcarry':'d0'); c.textContent=v||'';
+    c.style.fontSize='11px'; c.style.opacity=v?'1':'0.2';
+    row.appendChild(c);
+  });
+  return row;
+}
+
+function startSub(){
+  const aVal=parseInt(document.getElementById('sub-a').value)||0;
+  const bVal=parseInt(document.getElementById('sub-b').value)||0;
+  const bits=subBits;
+  const max=(1<<(bits-1))-1, min=-(1<<(bits-1));
+
+  const aBin=toBin(aVal,bits);
+  const bBin=toBin(bVal,bits);
+  const bInv=invertBits(bBin);
+  const {result:bC2,carry:addCarry}=addOneBin(bInv);
+  const {result:sumRes,carry:finalCarry,carries}=binAddFull(aBin,bC2,bits);
+
+  subCtx={aVal,bVal,bits,max,min,aBin,bBin,bInv,bC2,sumRes,finalCarry,carries};
+
+  document.getElementById('sub-steps-wrap').style.display='block';
+  ['sub-s1','sub-s2','sub-s3','sub-s4','sub-s5'].forEach(id=>{ document.getElementById(id).style.display='none'; });
+  subGoStep(1);
+}
+
+function subGoStep(step){
+  const {aVal,bVal,bits,aBin,bBin,bInv,bC2,sumRes,finalCarry,carries,max,min}=subCtx;
+
+  if(step===1){
+    document.getElementById('sub-s1').style.display='block';
+    const body=document.getElementById('sub-s1-body');
+    body.innerHTML='';
+    const wrap=document.createElement('div'); wrap.className='drow-wrap';
+    wrap.appendChild(buildDigitRow('A = '+aVal,aBin,'','',null));
+    wrap.appendChild(buildDigitRow('B = '+bVal,bBin,'+','',null));
+    body.appendChild(wrap);
+    body.insertAdjacentHTML('beforeend','<div class="info" style="margin-top:8px">Ambos representados em '+bits+' bits. A subtração A − B será realizada somando A + (complemento de 2 de B).</div>');
+  }
+  else if(step===2){
+    document.getElementById('sub-s2').style.display='block';
+    const body=document.getElementById('sub-s2-body');
+    body.innerHTML='';
+    const wrap=document.createElement('div'); wrap.className='drow-wrap';
+    // B original
+    const bOrigRow=buildDigitRow('B = '+bVal,bBin,'','',null);
+    wrap.appendChild(bOrigRow);
+    // Arrow
+    const arr=document.createElement('div');
+    arr.innerHTML='<div style="text-align:center;color:var(--red-d);font-size:20px;font-weight:700;padding:4px 0">↓ NOT bit a bit</div>';
+    wrap.appendChild(arr);
+    // Inverted — highlight changed bits
+    const invRow=document.createElement('div'); invRow.className='drow';
+    const opsEl=document.createElement('div'); opsEl.className='op-symbol';
+    invRow.appendChild(opsEl);
+    const lblEl=document.createElement('div'); lblEl.className='drow-label'; lblEl.textContent='B̄';
+    invRow.appendChild(lblEl);
+    bInv.split('').forEach((v,i)=>{
+      const c=document.createElement('div');
+      const changed=(v!==bBin[i]);
+      c.className='dcell '+(changed?'dinv':'d0');
+      c.textContent=v;
+      if(changed){ c.title='bit invertido'; }
+      invRow.appendChild(c);
+    });
+    wrap.appendChild(invRow);
+    body.appendChild(wrap);
+    body.insertAdjacentHTML('beforeend','<div class="info warn" style="margin-top:8px">Cada bit foi invertido (0→1, 1→0). Os bits <span class="badge br">alterados</span> estão destacados em rosa.</div>');
+  }
+  else if(step===3){
+    document.getElementById('sub-s3').style.display='block';
+    const body=document.getElementById('sub-s3-body');
+    body.innerHTML='';
+    const wrap=document.createElement('div'); wrap.className='drow-wrap';
+    // B inverted
+    wrap.appendChild(buildDigitRow('B̄',bInv,'','',null));
+    // +1 row
+    const plus1Row=document.createElement('div'); plus1Row.className='drow';
+    const ops2=document.createElement('div'); ops2.className='op-symbol'; ops2.textContent='+';
+    plus1Row.appendChild(ops2);
+    const lbl2=document.createElement('div'); lbl2.className='drow-label'; lbl2.textContent='+1';
+    plus1Row.appendChild(lbl2);
+    // pad +1
+    const plus1Str='1'.padStart(bits,'0');
+    plus1Str.split('').forEach(v=>{ const c=document.createElement('div'); c.className='dcell '+(v==='1'?'d1':'d0'); c.textContent=v; plus1Row.appendChild(c); });
+    wrap.appendChild(plus1Row);
+    // divider
+    const dv=document.createElement('div'); dv.className='divider-line'; wrap.appendChild(dv);
+    // C2 result
+    wrap.appendChild(buildDigitRow('−B (C2)',bC2,'=','dc2',null));
+    body.appendChild(wrap);
+    body.insertAdjacentHTML('beforeend','<div class="info success" style="margin-top:8px">Complemento de 2 de B: <b>'+bC2+'</b> — equivale a −'+bVal+' em C2 de '+bits+' bits.</div>');
+  }
+  else if(step===4){
+    document.getElementById('sub-s4').style.display='block';
+    const body=document.getElementById('sub-s4-body');
+    body.innerHTML='';
+    const wrap=document.createElement('div'); wrap.className='drow-wrap';
+    // carry row above
+    const carryRowFull=[...carries,0]; // N carries + placeholder for final
+    wrap.appendChild(buildCarryRow(carryRowFull,bits));
+    // A
+    wrap.appendChild(buildDigitRow('A = '+aVal,aBin,'','',null));
+    // C2 of B
+    wrap.appendChild(buildDigitRow('−B (C2)',bC2,'+','dc2',null));
+    // divider
+    const dv=document.createElement('div'); dv.className='divider-line'; wrap.appendChild(dv);
+    // result with discarded carry
+    const resRow=document.createElement('div'); resRow.className='drow';
+    const opsR=document.createElement('div'); opsR.className='op-symbol'; opsR.textContent='=';
+    resRow.appendChild(opsR);
+    const lblR=document.createElement('div'); lblR.className='drow-label'; lblR.textContent='soma';
+    resRow.appendChild(lblR);
+
+    // Extra carry cell (discarded)
+    const carryCell=document.createElement('div');
+    if(finalCarry){
+      carryCell.className='dcell discarded';
+      carryCell.textContent='1';
+      carryCell.title='carry descartado';
+    } else {
+      carryCell.className='dcell d0';
+      carryCell.style.opacity='0.2'; carryCell.style.borderStyle='dashed';
+      carryCell.textContent='0';
+    }
+    resRow.appendChild(carryCell);
+
+    sumRes.split('').forEach((v,i)=>{
+      const c=document.createElement('div');
+      const isMSB=(i===0);
+      c.className='dcell '+(v==='1'?(isMSB?'dcarry':'dresult'):'d0');
+      c.textContent=v;
+      if(isMSB){
+        c.title='MSB = bit de sinal';
+        c.style.borderWidth='3px';
+      }
+      resRow.appendChild(c);
+    });
+    wrap.appendChild(resRow);
+    body.appendChild(wrap);
+
+    let discardNote='';
+    if(finalCarry){
+      discardNote=`<div class="info danger" style="margin-top:8px">⚠ O carry final (${bits+1}.º bit) é <strong>descartado</strong> — marcado com ✕. Isso é esperado na subtração C2 quando A ≥ B.</div>`;
+    } else {
+      discardNote=`<div class="info" style="margin-top:8px">ℹ Sem carry final — o resultado é negativo (A < B).</div>`;
+    }
+    body.insertAdjacentHTML('beforeend',discardNote);
+    body.insertAdjacentHTML('beforeend','<div class="info warn" style="margin-top:6px">O MSB (bit mais à esquerda do resultado) é o <strong>bit de sinal</strong>: 0 = positivo, 1 = negativo.</div>');
+  }
+  else if(step===5){
+    document.getElementById('sub-s4').querySelector('.btn-row').style.display='none';
+    document.getElementById('sub-s5').style.display='block';
+    const body=document.getElementById('sub-s5-body');
+    const msb=sumRes[0];
+    const expected=aVal-bVal;
+    let decResult, interpNote, overflow=false;
+
+    if(msb==='0'){
+      decResult=parseInt(sumRes,2);
+      interpNote=`<div class="info success">MSB = 0 → resultado <strong>positivo</strong>: ${decResult}</div>`;
+    } else {
+      const {result:mag}=addOneBin(invertBits(sumRes));
+      decResult=-parseInt(mag,2);
+      interpNote=`<div class="info warn">MSB = 1 → resultado <strong>negativo</strong>. Aplicando C2: ${mag}₂ = ${parseInt(mag,2)} → resultado = <strong>${decResult}</strong></div>`;
+    }
+    if(decResult!==expected) overflow=true;
+
+    body.innerHTML=`
+      <div class="drow-wrap">
+        ${buildDigitRow('resultado',sumRes,'','',null).outerHTML}
+      </div>
+      ${interpNote}
+      <div class="info ${decResult===expected?'success':'danger'}" style="margin-top:8px">
+        Verificação: ${aVal} − ${bVal} = <strong>${expected}</strong> (esperado) | obtido: <strong>${decResult}</strong>
+        ${decResult===expected?' ✓ correto!':' ⚠ divergência (overflow?)'}
+      </div>
+      ${overflow?`<div class="info danger">⚠ OVERFLOW: ${decResult} fora do intervalo [${(-(1<<(subBits-1)))}, ${(1<<(subBits-1))-1}] para ${subBits} bits.</div>`:''}
+      <div class="info" style="margin-top:8px">
+        <strong>Conclusão:</strong> A ULA realizou apenas uma <em>soma</em>. O complemento de 2 de B foi obtido invertendo os bits de B e somando 1 (ou configurando Cin=1 com NOT nos bits de B). O carry extra foi descartado. Este é o mecanismo de todos os processadores modernos.
+      </div>`;
+  }
+}
+
+// ═══════════════════════════════════════════════
+// ABA 4 — COMPLEMENTO DE 2
+// ═══════════════════════════════════════════════
+let c2Bits=8, c2Ctx={};
+
+function setC2Bits(n){
+  c2Bits=n;
+  document.querySelectorAll('#c2-bits-seg .seg-btn').forEach(b=>b.classList.toggle('active',b.textContent.includes(n)));
+  const max=(1<<n)-1;
+  document.getElementById('c2-input').value=toBin(Math.floor(Math.random()*max+1),n);
+  validateC2Input();
+}
+
+function validateC2Input(){
+  const v=document.getElementById('c2-input').value.replace(/[^01]/g,'').slice(0,c2Bits);
+  document.getElementById('c2-input').value=v;
+  if(v.length>0) document.getElementById('c2-dec-hint').textContent=`= ${fromBin(v)} (decimal)`;
+  else document.getElementById('c2-dec-hint').textContent='';
+}
+
+function randomC2(){
+  const max=(1<<c2Bits)-1;
+  document.getElementById('c2-input').value=toBin(Math.floor(Math.random()*max+1),c2Bits);
+  validateC2Input();
+}
+
+function resetC2(){
+  document.getElementById('c2-anim-wrap').style.display='none';
+  ['c2-s1','c2-s2'].forEach(id=>document.getElementById(id).style.display='none');
+}
+
+function animC2(){
+  const raw=document.getElementById('c2-input').value.padStart(c2Bits,'0').slice(-c2Bits);
+  if(!/^[01]+$/.test(raw)||raw.length===0){alert('Digite um número binário válido.');return;}
+
+  const inv=invertBits(raw);
+  const {result:c2r,carry:oc}=addOneBin(inv);
+  c2Ctx={raw,inv,c2r,oc,bits:c2Bits};
+
+  document.getElementById('c2-anim-wrap').style.display='block';
+  ['c2-s1','c2-s2'].forEach(id=>document.getElementById(id).style.display='none');
+
+  // Step 0 — original
+  const s0=document.getElementById('c2-s0-body');
+  s0.innerHTML='';
+  s0.appendChild(buildDigitRow('entrada',raw,'','',null));
+  s0.insertAdjacentHTML('beforeend',`<div class="info" style="margin-top:6px">Valor decimal: <strong>${fromBin(raw)}</strong> &nbsp;|&nbsp; ${c2Bits} bits</div>`);
+
+  // show step 1
+  c2GoStep(1);
+}
+
+function c2GoStep(step){
+  const {raw,inv,c2r,oc,bits}=c2Ctx;
+  if(step===1){
+    document.getElementById('c2-s1').style.display='block';
+    const body=document.getElementById('c2-s1-body');
+    body.innerHTML='';
+    // original
+    body.appendChild(buildDigitRow('original',raw,'','',null));
+    // inverted row with changed bits highlighted
+    const invRow=document.createElement('div'); invRow.className='drow';
+    const opEl=document.createElement('div'); opEl.className='op-symbol'; opEl.textContent='';
+    invRow.appendChild(opEl);
+    const lblEl=document.createElement('div'); lblEl.className='drow-label'; lblEl.style.color='#be185d'; lblEl.textContent='C1 (NOT)';
+    invRow.appendChild(lblEl);
+    inv.split('').forEach((v,i)=>{
+      const c=document.createElement('div');
+      c.className='dcell '+(v!==raw[i]?'dinv':(v==='1'?'d1':'d0'));
+      c.textContent=v;
+      invRow.appendChild(c);
+    });
+    body.appendChild(invRow);
+    const changed=raw.split('').filter((b,i)=>b!==inv[i]).length;
+    document.getElementById('c2-s1-arrow').innerHTML=
+      `<span class="badge br">${changed} bit(s) invertido(s)</span> &nbsp; C1 = <strong style="font-family:monospace;letter-spacing:2px">${inv}</strong> = ${fromBin(inv)} decimal`;
+  }
+  else if(step===2){
+    document.getElementById('c2-s2').style.display='block';
+    const {inv,c2r,oc,bits,raw}=c2Ctx;
+    const body=document.getElementById('c2-s2-body');
+    body.innerHTML='';
+
+    // compute carries for display
+    let carry=0; const carries=[];
+    for(let i=bits-1;i>=0;i--){
+      carries.unshift(carry);
+      const s=+inv[i]+carry; carry=Math.floor(s/2);
+    }
+
+    body.appendChild(buildCarryRow(carries,bits));
+    body.appendChild(buildDigitRow('C1',inv,'','',null));
+    // +1 row
+    const p1Row=document.createElement('div'); p1Row.className='drow';
+    const op2=document.createElement('div'); op2.className='op-symbol'; op2.textContent='+';
+    p1Row.appendChild(op2);
+    const lb2=document.createElement('div'); lb2.className='drow-label'; lb2.textContent='+1';
+    p1Row.appendChild(lb2);
+    '1'.padStart(bits,'0').split('').forEach(v=>{
+      const c=document.createElement('div'); c.className='dcell '+(v==='1'?'d1':'d0'); c.textContent=v;
+      p1Row.appendChild(c);
+    });
+    body.appendChild(p1Row);
+    const dv=document.createElement('div'); dv.className='divider-line'; body.appendChild(dv);
+    body.appendChild(buildDigitRow('C2',c2r,'=','dc2',null));
+
+    const resEl=document.getElementById('c2-s2-result');
+    const dec=fromBin(raw), c2dec=fromBin(c2r);
+    resEl.innerHTML=
+      `<div class="info success">Complemento de 2: <strong style="font-family:monospace;letter-spacing:2px">${c2r}</strong> = ${c2dec} (sem sinal) = <strong>−${dec}</strong> (com sinal)</div>`+
+      (oc?`<div class="info warn" style="margin-top:6px">⚠ Carry além dos ${bits} bits descartado — ocorre normalmente com o número zero (0000…0).</div>`:'')+
+      `<div class="info" style="margin-top:6px">Verificação: ${dec} + ${c2dec} = ${dec+c2dec} → descartando carry → <strong>0</strong> ✓ (soma de um número com seu complemento de 2 é sempre zero)</div>`;
+  }
+}
+
+// ═══════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════
+validateBin('a'); validateBin('b');
+validateHex('a'); validateHex('b');
+updateHA(); updateFA();
+
+// init ripple carry rows
+(['a','b']).forEach(w=>{
+  const arr=w==='a'?rcA:rcB;
+  const row=document.getElementById('rc-'+w+'-row');
+  arr.forEach((v,i)=>{
+    const c=makeDCell(v,'rc-'+w+i,''); c.style.cursor='pointer';
+    c.onclick=(()=>{
+      const idx=i;
+      return ()=>{ arr[idx]^=1; c.textContent=arr[idx]; c.className='dcell '+(arr[idx]?'d1':'d0'); };
+    })();
+    row.appendChild(c);
+  });
+});
+updateRCInputDots();
+</script>
+</body>
+</html>
