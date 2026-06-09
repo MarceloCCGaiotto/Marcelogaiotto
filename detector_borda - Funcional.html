@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Detector de Borda</title>
+<style>
+:root{
+  --bg:#0d1117;--panel:#161b22;--border:#30363d;--text:#e6edf3;
+  --muted:#8b949e;--gate-bg:#21262d;--accent:#388bfd;--danger:#f85149;
+  --c-clk:#58a6ff;--c-inv:#ff9500;--c-inv2:#e06cff;--c-inv3:#00d8a0;--c-out:#3fb950;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono','Fira Mono','Courier New',monospace;min-height:100vh}
+header{padding:.9rem 1.8rem .6rem;border-bottom:1px solid var(--border)}
+header h1{font-size:.92rem;font-weight:700;letter-spacing:.06em;color:var(--c-out);text-transform:uppercase}
+header p{font-size:.7rem;color:var(--muted);margin-top:3px;line-height:1.5}
+.tabs{display:flex;background:var(--panel);border-bottom:1px solid var(--border);padding:0 1.8rem}
+.tab{padding:.55rem 1.2rem;font-family:inherit;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);cursor:pointer;transition:all .15s}
+.tab.active{color:var(--c-out);border-bottom-color:var(--c-out)}
+.page{display:none}.page.active{display:grid}
+.layout{grid-template-columns:1fr 275px;min-height:calc(100vh - 105px)}
+.left{padding:1rem 1.2rem;border-right:1px solid var(--border);display:flex;flex-direction:column;gap:.85rem}
+.right{padding:1.1rem;background:var(--panel);display:flex;flex-direction:column;gap:.9rem;overflow-y:auto}
+.sec{font-size:.6rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);border-bottom:1px solid var(--border);padding-bottom:3px;margin-bottom:6px}
+.ctrl-row{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.ctrl-row label{font-size:.68rem;color:var(--muted);min-width:65px}
+.ctrl-row input[type=range]{flex:1;accent-color:var(--accent)}
+.ctrl-row .val{font-size:.72rem;font-weight:700;min-width:50px;text-align:right;color:var(--text)}
+.run-btn{width:100%;padding:.58rem;font-family:inherit;font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;border:1px solid var(--c-out);background:transparent;color:var(--c-out);cursor:pointer;border-radius:4px;transition:all .15s}
+.run-btn:hover{background:var(--c-out);color:#000}
+.run-btn.running{background:var(--danger);border-color:var(--danger);color:#fff}
+.pulse-ind{display:flex;align-items:center;gap:8px;padding:.42rem .7rem;border:1px solid var(--border);border-radius:4px;background:var(--gate-bg);font-size:.68rem;color:var(--muted);transition:all .1s}
+.pulse-ind.on{border-color:var(--c-out);color:var(--c-out);background:rgba(63,185,80,.07)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--border);transition:all .1s;flex-shrink:0}
+.pulse-ind.on .dot{background:var(--c-out);box-shadow:0 0 6px var(--c-out)}
+/* canvas: fixed pixel size set by JS, but container stretches */
+canvas{display:block;background:#080c10;border:1px solid var(--border);border-radius:6px;max-width:100%}
+.info-box{background:var(--gate-bg);border:1px solid var(--border);border-radius:5px;padding:.65rem;font-size:.67rem;line-height:1.75;color:var(--muted)}
+.info-box b{color:var(--text)}.hl{color:var(--c-out);font-weight:700}
+.leg-row{display:flex;align-items:center;gap:7px;margin-bottom:4px;font-size:.67rem;color:var(--muted)}
+.leg-ln{width:20px;height:2px;border-radius:1px;flex-shrink:0}
+</style>
+</head>
+<body>
+<header>
+  <h1>Detectores de Borda — Subida &amp; Descida</h1>
+  <p>Visualize como o atraso de propagação das inversoras gera um pulso estreito em CLK*</p>
+</header>
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('rise',this)">▲ Borda de Subida</button>
+  <button class="tab"        onclick="switchTab('fall',this)">▼ Borda de Descida</button>
+</div>
+
+<!-- BORDA DE SUBIDA -->
+<div id="page-rise" class="page layout active">
+  <div class="left">
+    <canvas id="cc-rise"></canvas>
+    <canvas id="wc-rise"></canvas>
+    <div class="pulse-ind" id="pi-rise"><div class="dot"></div><span id="pt-rise">Aguardando borda de subida...</span></div>
+  </div>
+  <div class="right" id="ctrl-rise"></div>
+</div>
+
+<!-- BORDA DE DESCIDA -->
+<div id="page-fall" class="page layout">
+  <div class="left">
+    <canvas id="cc-fall"></canvas>
+    <canvas id="wc-fall"></canvas>
+    <div class="pulse-ind" id="pi-fall"><div class="dot"></div><span id="pt-fall">Aguardando borda de descida...</span></div>
+  </div>
+  <div class="right" id="ctrl-fall"></div>
+</div>
+
+<script>
+const HIST=500;
+const P={
+  rise:{freq:.6,delayPct:.15,running:false,animId:null,lastTs:null,simT:0,
+        invOut:1,bits:[],lastClk:0, hist:{clk:[],inv:[],out:[]}},
+  fall:{freq:.6,delayPct:.15,running:false,animId:null,lastTs:null,simT:0,
+        inv1Out:0,inv2Out:1,inv3Out:1, bits1:[],bits2:[],bits3:[],lastClk:0,
+        hist:{clk:[],inv1:[],inv2:[],inv3:[],out:[]}},
+};
+
+// ── canvas fixed dimensions ───────────────────────────
+// We use a fixed pixel width so proportions never depend on CSS layout timing
+const CW_RISE=820, CH_CIRC_RISE=200, CH_WAVE_RISE=200;
+const CW_FALL=820, CH_CIRC_FALL=220, CH_WAVE_FALL=210;
+
+function initCanvases(){
+  const cr=document.getElementById('cc-rise');
+  cr.width=CW_RISE; cr.height=CH_CIRC_RISE;
+  cr.style.width='100%';
+
+  const wr=document.getElementById('wc-rise');
+  wr.width=CW_RISE; wr.height=CH_WAVE_RISE;
+  wr.style.width='100%';
+
+  const cf=document.getElementById('cc-fall');
+  cf.width=CW_FALL; cf.height=CH_CIRC_FALL;
+  cf.style.width='100%';
+
+  const wf=document.getElementById('wc-fall');
+  wf.width=CW_FALL; wf.height=CH_WAVE_FALL;
+  wf.style.width='100%';
+}
+
+// ── build control panels ──────────────────────────────
+function buildPanel(id){
+  const iR=id==='rise';
+  document.getElementById('ctrl-'+id).innerHTML=`
+  <div><div class="sec">Controle</div>
+    <button class="run-btn" id="runBtn-${id}" onclick="toggleRun('${id}')">▶ Iniciar</button></div>
+  <div><div class="sec">Parâmetros</div>
+    <div class="ctrl-row"><label>Freq. CLK</label>
+      <input type="range" id="fS-${id}" min="0.2" max="2" step="0.1" value="0.6">
+      <span class="val" id="fV-${id}">0.6 Hz</span></div>
+    <div class="ctrl-row"><label>t<sub>pd</sub></label>
+      <input type="range" id="dS-${id}" min="5" max="40" step="1" value="15">
+      <span class="val" id="dV-${id}">15 %T</span></div>
+    <p style="font-size:.63rem;color:var(--muted);line-height:1.5;margin-top:2px">
+      ${iR?'1 inversora. Pulso ≈ t<sub>pd</sub>.':'3 inversoras (t<sub>pd</sub> igual). Pulso ≈ t<sub>pd</sub> (janela entre 1× e 2×t<sub>pd</sub>).'}</p></div>
+  <div><div class="sec">Legenda</div>
+    <div class="leg-row"><div class="leg-ln" style="background:#58a6ff"></div>CLK</div>
+    ${iR
+      ?`<div class="leg-row"><div class="leg-ln" style="background:#ff9500;border-top:2px dashed #ff9500;height:0"></div>Saída INV (atraso t<sub>pd</sub>)</div>`
+      :`<div class="leg-row"><div class="leg-ln" style="background:#ff9500;border-top:2px dashed #ff9500;height:0"></div>Saída INV1 — top (1×t<sub>pd</sub>)</div>
+        <div class="leg-row"><div class="leg-ln" style="background:#e06cff;border-top:2px dashed #e06cff;height:0"></div>Saída INV2 — top (2×t<sub>pd</sub>)</div>
+        <div class="leg-row"><div class="leg-ln" style="background:#00d8a0;border-top:2px dashed #00d8a0;height:0"></div>Saída INV3 — bot (1×t<sub>pd</sub>)</div>`}
+    <div class="leg-row"><div class="leg-ln" style="background:#3fb950"></div>CLK* (saída AND)</div>
+    <div class="leg-row"><div style="width:11px;height:11px;border-radius:50%;background:#58a6ff;border:1.5px solid #9dcfff;flex-shrink:0"></div>bit viajando</div></div>
+  <div class="info-box">
+    ${iR
+      ?`<b>Borda de subida:</b><br>
+        — Superior: CLK → INV → AND<br>
+        — Inferior: CLK direto → AND<br><br>
+        Na transição 0→1 do CLK, INV ainda mantém <b>1</b> por t<sub>pd</sub>.<br>
+        AND = <span style="color:#ff9500">INV=1</span> · <span style="color:#58a6ff">CLK=1</span> → <span class="hl">pulso!</span>`
+      :`<b>Borda de descida:</b><br>
+        — Superior: CLK→INV1→INV2→AND<br>
+        — Inferior: CLK→INV3→AND<br><br>
+        Na transição 1→0 do CLK:<br>
+        · INV3 ainda mantém <b>1</b> por 1×t<sub>pd</sub><br>
+        · INV2 ainda mantém <b>1</b> por 2×t<sub>pd</sub><br><br>
+        AND=<span style="color:#e06cff">INV2=1</span>·<span style="color:#00d8a0">INV3=1</span> → <span class="hl">pulso!</span>`}
+  </div>
+  <div style="font-size:.67rem;text-align:center;padding:.38rem;border:1px solid var(--border);border-radius:4px;background:var(--gate-bg)">
+    ${iR
+      ?'CLK* = CLK · <span style="text-decoration:overline">CLK</span><sub style="font-size:.52rem">atrasado</sub>'
+      :'CLK* = INV2<sub style="font-size:.52rem">2·tpd</sub> · INV3<sub style="font-size:.52rem">1·tpd</sub>'}
+  </div>`;
+
+  document.getElementById('fS-'+id).oninput=function(){
+    P[id].freq=parseFloat(this.value);
+    document.getElementById('fV-'+id).textContent=parseFloat(this.value).toFixed(1)+' Hz';
+    resetSim(id);
+  };
+  document.getElementById('dS-'+id).oninput=function(){
+    P[id].delayPct=parseInt(this.value)/100;
+    document.getElementById('dV-'+id).textContent=parseInt(this.value)+' %T';
+  };
+}
+
+// ── tab switch ────────────────────────────────────────
+function switchTab(id,btn){
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('page-'+id).classList.add('active');
+  redrawStatic();
+}
+
+// ── helpers ───────────────────────────────────────────
+function clkVal(t,f){const p=1/f;return((t%p)+p)%p<p*.5?1:0;}
+
+function resetSim(id){
+  const s=P[id]; s.simT=0; s.lastTs=null; s.lastClk=0;
+  s.hist.clk.length=0;
+  if(id==='rise'){
+    s.invOut=1; s.bits=[];
+    s.hist.inv.length=0; s.hist.out.length=0;
+  } else {
+    s.inv1Out=0; s.inv2Out=1; s.inv3Out=1;
+    s.bits1=[]; s.bits2=[]; s.bits3=[];
+    s.hist.inv1.length=0; s.hist.inv2.length=0;
+    s.hist.inv3.length=0; s.hist.out.length=0;
+  }
+}
+
+function toggleRun(id){
+  const s=P[id]; s.running=!s.running;
+  const btn=document.getElementById('runBtn-'+id);
+  if(s.running){
+    btn.textContent='■ Parar'; btn.classList.add('running');
+    resetSim(id);
+    s.animId=requestAnimationFrame(ts=>loopFn[id](ts));
+  } else {
+    btn.textContent='▶ Iniciar'; btn.classList.remove('running');
+    cancelAnimationFrame(s.animId);
+  }
+}
+
+function pushHist(h,vals){
+  const keys=Object.keys(h);
+  keys.forEach((k,i)=>{h[k].push(vals[i]); if(h[k].length>HIST)h[k].shift();});
+}
+
+function updInd(id,out,lbl){
+  const pi=document.getElementById('pi-'+id), pt=document.getElementById('pt-'+id);
+  if(out){pi.classList.add('on'); pt.textContent='⚡ '+lbl+' detectada!';}
+  else{pi.classList.remove('on'); pt.textContent='Aguardando '+lbl.toLowerCase()+'...';}
+}
+
+// ── loop rise ─────────────────────────────────────────
+function loopRise(ts){
+  const s=P.rise;
+  if(!s.running)return;
+  if(!s.lastTs)s.lastTs=ts;
+  const dt=Math.min((ts-s.lastTs)/1000,.04);
+  s.lastTs=ts; s.simT+=dt;
+  const clk=clkVal(s.simT,s.freq);
+  const spd=1/(s.delayPct*(1/s.freq));
+
+  if(clk!==s.lastClk) s.bits.push({v:clk,p:0});
+  s.lastClk=clk;
+  s.bits.forEach(b=>b.p+=spd*dt);
+  s.bits=s.bits.filter(b=>{if(b.p>=1){s.invOut=1-b.v;return false;}return true;});
+  const out=clk & s.invOut;
+  pushHist(s.hist,[clk,s.invOut,out]);
+  updInd('rise',out,'Borda de subida');
+  drawRise(clk,s.invOut,out,s.bits);
+  drawWave('rise');
+  s.animId=requestAnimationFrame(loopRise);
+}
+
+// ── loop fall ─────────────────────────────────────────
+function loopFall(ts){
+  const s=P.fall;
+  if(!s.running)return;
+  if(!s.lastTs)s.lastTs=ts;
+  const dt=Math.min((ts-s.lastTs)/1000,.04);
+  s.lastTs=ts; s.simT+=dt;
+  const clk=clkVal(s.simT,s.freq);
+  const spd=1/(s.delayPct*(1/s.freq));
+
+  if(clk!==s.lastClk){
+    s.bits1.push({v:clk,p:0});
+    s.bits3.push({v:clk,p:0});
+  }
+  s.lastClk=clk;
+
+  s.bits1.forEach(b=>b.p+=spd*dt);
+  s.bits1=s.bits1.filter(b=>{
+    if(b.p>=1){const nv=1-b.v; if(nv!==s.inv1Out){s.bits2.push({v:nv,p:0});} s.inv1Out=nv; return false;}
+    return true;
+  });
+  s.bits2.forEach(b=>b.p+=spd*dt);
+  s.bits2=s.bits2.filter(b=>{if(b.p>=1){s.inv2Out=1-b.v;return false;}return true;});
+  s.bits3.forEach(b=>b.p+=spd*dt);
+  s.bits3=s.bits3.filter(b=>{if(b.p>=1){s.inv3Out=1-b.v;return false;}return true;});
+
+  const out=s.inv2Out & s.inv3Out;
+  pushHist(s.hist,[clk,s.inv1Out,s.inv2Out,s.inv3Out,out]);
+  updInd('fall',out,'Borda de descida');
+  drawFall(clk,s.inv1Out,s.inv2Out,s.inv3Out,out,s.bits1,s.bits2,s.bits3);
+  drawWave('fall');
+  s.animId=requestAnimationFrame(loopFall);
+}
+
+const loopFn={rise:loopRise,fall:loopFall};
+
+// ══════════════════════════════════════════════════════
+// ── DRAWING ───────────────────────────────────────────
+// ══════════════════════════════════════════════════════
+
+function wCol(v){return v?'#58a6ff':'#2a3a52';}
+function wW(v){return v?2.5:1.5;}
+
+function wire(c,x1,y1,x2,y2,v,dash){
+  c.strokeStyle=wCol(v); c.lineWidth=wW(v);
+  c.setLineDash(dash?[6,4]:[]); c.beginPath();
+  c.moveTo(x1,y1); c.lineTo(x2,y2); c.stroke();
+  c.setLineDash([]);
+}
+function wireCorner(c,x1,y1,x2,y2,v){
+  // L-shaped: vertical then horizontal
+  c.strokeStyle=wCol(v); c.lineWidth=wW(v);
+  c.setLineDash([]); c.beginPath();
+  c.moveTo(x1,y1); c.lineTo(x1,y2); c.lineTo(x2,y2); c.stroke();
+}
+
+// Draw inverter with FIXED proportions — no dependency on canvas W
+// sx,cy = start x, centre y
+// Returns geometry object
+function drawInv(c, sx, cy, label, tpdStr, tcol){
+  const TRI_W=80;  // fixed pixel width for triangle body
+  const TRI_H=22;  // half-height of triangle
+  const BUB_R=7;
+  const tipX = sx + TRI_W;
+  const bubCx = tipX + BUB_R + 1;
+
+  c.fillStyle='#111820'; c.strokeStyle='#4a5568'; c.lineWidth=1.5;
+  c.beginPath();
+  c.moveTo(sx,      cy-TRI_H);
+  c.lineTo(tipX,    cy);
+  c.lineTo(sx,      cy+TRI_H);
+  c.closePath();
+  c.fill(); c.stroke();
+
+  c.beginPath(); c.arc(bubCx, cy, BUB_R, 0, Math.PI*2);
+  c.fillStyle='#0d1117'; c.fill();
+  c.strokeStyle='#4a5568'; c.lineWidth=1.5; c.stroke();
+
+  c.fillStyle='#8b949e'; c.font='bold 10px monospace';
+  c.textAlign='center'; c.textBaseline='middle';
+  c.fillText(label, sx+TRI_W/2, cy);
+
+  if(tpdStr){
+    c.fillStyle=tcol||'#ff9500'; c.font='9px monospace';
+    c.textAlign='center';
+    c.fillText(tpdStr, sx+TRI_W/2, cy+TRI_H+13);
+  }
+
+  return {sx, tipX, bubCx, bubR:BUB_R, inX:sx, outX:bubCx+BUB_R, cy, triH:TRI_H, triW:TRI_W};
+}
+
+function drawAND(c, x, cy){
+  const GH=68, BW=40, AX=x+BW;
+  c.fillStyle='#111820'; c.strokeStyle='#4a5568'; c.lineWidth=1.5;
+  c.beginPath();
+  c.moveTo(x, cy-GH/2); c.lineTo(AX, cy-GH/2);
+  c.arc(AX, cy, GH/2, -Math.PI/2, Math.PI/2);
+  c.lineTo(x, cy+GH/2); c.closePath();
+  c.fill(); c.stroke();
+  c.fillStyle='#8b949e'; c.font='bold 11px monospace';
+  c.textAlign='center'; c.textBaseline='middle';
+  c.fillText('AND', AX, cy);
+  return {x, cy, gh:GH, bw:BW, ax:AX, outX:AX+GH/2, topInY:cy-GH/4, botInY:cy+GH/4};
+}
+
+function lNode(c, x, y, v, col, lbl, side){
+  const r=10;
+  c.beginPath(); c.arc(x,y,r,0,Math.PI*2);
+  c.fillStyle=v?col+'2a':'#111820'; c.fill();
+  c.strokeStyle=v?col:'#2a3a52'; c.lineWidth=1.5; c.stroke();
+  c.fillStyle=v?col:'#445'; c.font='bold 9px monospace';
+  c.textAlign='center'; c.textBaseline='middle'; c.fillText(v,x,y);
+  if(lbl){
+    c.fillStyle=v?col:'#556'; c.font='600 8px monospace';
+    c.textAlign=side==='l'?'right':'left';
+    c.fillText(lbl, side==='l'?x-r-3:x+r+3, y);
+  }
+}
+
+function drawBit(c, x, y, v, fillCol, strokeCol, glowCol){
+  const r=8;
+  const g=c.createRadialGradient(x,y,0,x,y,r*2.5);
+  g.addColorStop(0, glowCol||'rgba(88,166,255,.35)');
+  g.addColorStop(1,'rgba(0,0,0,0)');
+  c.beginPath(); c.arc(x,y,r*2.5,0,Math.PI*2); c.fillStyle=g; c.fill();
+  c.beginPath(); c.arc(x,y,r,0,Math.PI*2);
+  c.fillStyle=v?(fillCol||'#58a6ff'):'#1a2840'; c.fill();
+  c.strokeStyle=v?(strokeCol||'#9dcfff'):'#2a3f60'; c.lineWidth=1.5; c.stroke();
+  c.fillStyle=v?'#000':'#6a9bd0'; c.font='bold 8px monospace';
+  c.textAlign='center'; c.textBaseline='middle'; c.fillText(v,x,y);
+}
+
+// bit position along inverter path
+// p: 0=enter input, 1=exit output
+function bitOnInv(p, inv){
+  const pp=Math.min(p,.999);
+  // 0.00–0.15: approach wire (just before triangle input)
+  // 0.15–0.78: inside triangle
+  // 0.78–1.00: bubble
+  const {inX, tipX, bubCx, bubR, cy} = inv;
+  const approachStart = inX - 30;
+  if(pp<.15){const t=pp/.15; return{x:approachStart+(inX-approachStart)*t, y:cy};}
+  if(pp<.78){const t=(pp-.15)/.63; return{x:inX+(tipX-inX)*t, y:cy};}
+  {const t=(pp-.78)/.22; return{x:tipX+(bubCx+bubR-tipX)*t, y:cy};}
+}
+
+// ── DRAW RISING EDGE ──────────────────────────────────
+function drawRise(clk, invOut, out, bits){
+  const el=document.getElementById('cc-rise');
+  const W=el.width, H=el.height;
+  const c=el.getContext('2d');
+  c.clearRect(0,0,W,H);
+
+  const topY = H*0.30;
+  const botY = H*0.70;
+  const cy   = H/2;
+
+  // split node x
+  const splitX = 90;
+  // inverter starts here
+  const invSx = 160;
+  // AND gate x — placed so there's room after inv output
+  const INV_OUT_X = invSx + 80 + 7 + 7; // invSx + TRI_W + bubR + bubR
+  const andX = INV_OUT_X + 80; // gap after inv output
+
+  const tpd='t\u209Cd='+Math.round(P.rise.delayPct*100)+'%T';
+
+  // CLK label
+  c.fillStyle='#58a6ff'; c.font='bold 11px monospace';
+  c.textAlign='right'; c.textBaseline='middle';
+  c.fillText('CLK', splitX-8, botY);
+
+  // wire in → split
+  wire(c, splitX, botY, splitX+2, botY, clk);
+  // split dot
+  c.fillStyle=wCol(clk); c.beginPath(); c.arc(splitX,botY,5,0,Math.PI*2); c.fill();
+
+  // top branch: split → up → inv input
+  wireCorner(c, splitX, botY, invSx-30, topY, clk);
+  wire(c, invSx-30, topY, invSx, topY, clk);
+
+  // bottom branch: split → AND bottom
+  wire(c, splitX, botY, andX, botY, clk);
+
+  // inverter on top
+  const inv=drawInv(c, invSx, topY, 'INV', tpd, '#ff9500');
+
+  // wire inv out → AND top
+  wire(c, inv.outX, topY, andX, topY, invOut, true);
+
+  // AND gate — inputs at topY and botY
+  // We need to place AND so its input pins align with topY and botY
+  const and=drawAND(c, andX, cy);
+
+  // connect AND top input from topY down to gate
+  wire(c, andX, topY, andX, and.cy-and.gh/4, invOut);
+  // connect AND bottom input from botY up to gate  
+  wire(c, andX, botY, andX, and.cy+and.gh/4, clk);
+
+  // output wire
+  wire(c, and.outX, cy, W-20, cy, out);
+
+  // logic nodes
+  lNode(c, andX-2, topY, invOut, '#ff9500', 'Ā', 'l');
+  lNode(c, andX-2, botY, clk,   '#58a6ff', 'B', 'l');
+  lNode(c, and.outX+20, cy, out, '#3fb950', 'S', 'r');
+
+  // CLK* label
+  c.fillStyle='#3fb950'; c.font='bold 11px monospace';
+  c.textAlign='left'; c.textBaseline='middle';
+  c.fillText('CLK*', W-16, cy);
+
+  // travelling bits on top path
+  for(const b of bits){
+    const pos=bitOnInv(b.p, {...inv, inX:invSx});
+    drawBit(c, pos.x, topY, b.v, '#58a6ff','#9dcfff','rgba(88,166,255,.35)');
+  }
+}
+
+// ── DRAW FALLING EDGE ─────────────────────────────────
+function drawFall(clk, inv1Out, inv2Out, inv3Out, out, bits1, bits2, bits3){
+  const el=document.getElementById('cc-fall');
+  const W=el.width, H=el.height;
+  const c=el.getContext('2d');
+  c.clearRect(0,0,W,H);
+
+  const topY = H*0.22;
+  const botY = H*0.78;
+  const cy   = H/2;
+  const splitX = 80;
+
+  // INV geometry (all same size: TRI_W=80)
+  const TRI_W=80, BUB=15; // BUB = bubR*2 + gap
+  const INV_TOTAL = TRI_W + BUB; // px per inverter
+  const GAP = 30; // gap between inv1 and inv2 on top
+
+  const inv1Sx = 150;
+  const inv2Sx = inv1Sx + INV_TOTAL + GAP;
+  const inv3Sx = inv1Sx; // aligned under inv1
+
+  // AND placed after inv2 output + some gap
+  const inv2OutX = inv2Sx + INV_TOTAL;
+  const andX = inv2OutX + 70;
+
+  const tpd='t\u209Cd='+Math.round(P.fall.delayPct*100)+'%T';
+
+  // CLK label
+  c.fillStyle='#58a6ff'; c.font='bold 11px monospace';
+  c.textAlign='right'; c.textBaseline='middle';
+  c.fillText('CLK', splitX-8, cy);
+
+  // Input wire → split
+  wire(c, splitX-2, cy, splitX, cy, clk);
+  c.fillStyle=wCol(clk); c.beginPath(); c.arc(splitX,cy,5,0,Math.PI*2); c.fill();
+
+  // Top branch: split → up → inv1
+  wireCorner(c, splitX, cy, inv1Sx-30, topY, clk);
+  wire(c, inv1Sx-30, topY, inv1Sx, topY, clk);
+
+  // Bottom branch: split → down → inv3
+  wireCorner(c, splitX, cy, inv3Sx-30, botY, clk);
+  wire(c, inv3Sx-30, botY, inv3Sx, botY, clk);
+
+  // INV1
+  const inv1=drawInv(c, inv1Sx, topY, 'INV1', tpd, '#ff9500');
+  // wire INV1→INV2
+  wire(c, inv1.outX, topY, inv2Sx, topY, inv1Out, true);
+  // intermediate node
+  lNode(c, inv1.outX+15, topY, inv1Out, '#ff9500');
+
+  // INV2
+  const inv2=drawInv(c, inv2Sx, topY, 'INV2', tpd, '#e06cff');
+  // wire INV2→AND top
+  wire(c, inv2.outX, topY, andX, topY, inv2Out, true);
+
+  // INV3 (bottom, aligned under INV1)
+  const inv3=drawInv(c, inv3Sx, botY, 'INV3', tpd, '#00d8a0');
+  // wire INV3→AND bottom (long)
+  wire(c, inv3.outX, botY, andX, botY, inv3Out, true);
+
+  // AND gate
+  const and=drawAND(c, andX, cy);
+  wire(c, andX, topY, andX, and.cy-and.gh/4, inv2Out);
+  wire(c, andX, botY, andX, and.cy+and.gh/4, inv3Out);
+
+  // output
+  wire(c, and.outX, cy, W-20, cy, out);
+
+  // logic nodes
+  lNode(c, andX-2, topY, inv2Out, '#e06cff', 'Ā', 'l');
+  lNode(c, andX-2, botY, inv3Out, '#00d8a0', 'B', 'l');
+  lNode(c, and.outX+20, cy, out, '#3fb950', 'S', 'r');
+
+  // CLK* label
+  c.fillStyle='#3fb950'; c.font='bold 11px monospace';
+  c.textAlign='left'; c.textBaseline='middle';
+  c.fillText('CLK*', W-16, cy);
+
+  // bits on INV1 path (blue — CLK value)
+  for(const b of bits1){
+    const pos=bitOnInv(b.p, {...inv1, inX:inv1Sx});
+    drawBit(c, pos.x, topY, b.v, '#58a6ff','#9dcfff','rgba(88,166,255,.35)');
+  }
+  // bits on INV2 path (orange — inv1 output value)
+  for(const b of bits2){
+    const pos=bitOnInv(b.p, {...inv2, inX:inv2Sx});
+    drawBit(c, pos.x, topY, b.v, '#ff9500','#ffc060','rgba(255,149,0,.35)');
+  }
+  // bits on INV3 path (teal — CLK value)
+  for(const b of bits3){
+    const pos=bitOnInv(b.p, {...inv3, inX:inv3Sx});
+    drawBit(c, pos.x, botY, b.v, '#00d8a0','#80ffe0','rgba(0,216,160,.35)');
+  }
+}
+
+// ── WAVEFORM ──────────────────────────────────────────
+function drawWave(id){
+  const el=document.getElementById('wc-'+id);
+  const W=el.width, H=el.height;
+  const c=el.getContext('2d');
+  c.clearRect(0,0,W,H);
+  const s=P[id];
+
+  const rows=id==='rise'
+    ?[{d:s.hist.clk, l:'CLK',  col:'#58a6ff',dash:[]},
+      {d:s.hist.inv, l:'CLK̄', col:'#ff9500', dash:[5,3]},
+      {d:s.hist.out, l:'CLK*', col:'#3fb950', dash:[]}]
+    :[{d:s.hist.clk,  l:'CLK',  col:'#58a6ff',dash:[]},
+      {d:s.hist.inv1, l:'INV1', col:'#ff9500', dash:[5,3]},
+      {d:s.hist.inv2, l:'INV2', col:'#e06cff', dash:[4,2]},
+      {d:s.hist.inv3, l:'INV3', col:'#00d8a0', dash:[3,3]},
+      {d:s.hist.out,  l:'CLK*', col:'#3fb950', dash:[]}];
+
+  const PAD=46, PADR=16, nR=rows.length, rowH=(H-14)/nR;
+
+  c.strokeStyle='#161e2a'; c.lineWidth=.5;
+  for(let i=0;i<=4;i++){
+    const x=PAD+(i/4)*(W-PAD-PADR);
+    c.beginPath();c.moveTo(x,4);c.lineTo(x,H-10);c.stroke();
+  }
+
+  rows.forEach((r,ri)=>{
+    const data=r.d; if(!data||data.length<2)return;
+    const n=data.length, y0=4+ri*rowH, high=y0+4, low=y0+rowH-7;
+
+    c.fillStyle=r.col+'14'; c.beginPath(); let mv=false;
+    for(let i=0;i<n;i++){
+      const x=PAD+(i/(HIST-1))*(W-PAD-PADR), y=data[i]?high:low;
+      if(!mv){c.moveTo(x,low);c.lineTo(x,y);mv=true;}else c.lineTo(x,y);
+    }
+    c.lineTo(PAD+((n-1)/(HIST-1))*(W-PAD-PADR),low); c.closePath(); c.fill();
+
+    c.strokeStyle=r.col; c.lineWidth=2; c.setLineDash(r.dash); c.beginPath();
+    for(let i=0;i<n;i++){
+      const x=PAD+(i/(HIST-1))*(W-PAD-PADR), y=data[i]?high:low;
+      if(i===0){c.moveTo(x,y);continue;}
+      const py=data[i-1]?high:low;
+      if(y!==py){c.lineTo(x,py);c.lineTo(x,y);}else c.lineTo(x,y);
+    }
+    c.stroke(); c.setLineDash([]);
+
+    c.fillStyle=r.col; c.font='600 10px monospace';
+    c.textAlign='right'; c.textBaseline='middle';
+    c.fillText(r.l, PAD-4, y0+rowH/2);
+
+    const last=data[data.length-1];
+    c.fillStyle=last?r.col:'#334155'; c.font='bold 9px monospace'; c.textAlign='left';
+    c.fillText(last?'1':'0', W-PADR+2, y0+rowH/2);
+
+    c.strokeStyle='#1a2332'; c.lineWidth=.5;
+    c.beginPath();c.moveTo(PAD,y0+rowH-1);c.lineTo(W-PADR,y0+rowH-1);c.stroke();
+  });
+
+  const tT=HIST/60;
+  c.fillStyle='#3a4455'; c.font='9px monospace'; c.textAlign='center';
+  for(let i=0;i<=4;i++){
+    const x=PAD+(i/4)*(W-PAD-PADR);
+    c.fillText(((i/4)*tT).toFixed(1)+'s', x, H-1);
+  }
+}
+
+// ── static initial draw ────────────────────────────────
+function redrawStatic(){
+  drawRise(0, 1, 0, []);
+  drawFall(0, 0, 1, 1, 0, [], [], []);
+  drawWave('rise');
+  drawWave('fall');
+}
+
+// ── init ──────────────────────────────────────────────
+initCanvases();
+buildPanel('rise');
+buildPanel('fall');
+redrawStatic();
+</script>
+</body>
+</html>
