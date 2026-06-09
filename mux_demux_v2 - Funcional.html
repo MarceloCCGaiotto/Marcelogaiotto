@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MUX / DEMUX Encadeados</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap');
+
+:root {
+  --bg: #0b0f1a;
+  --panel: #111827;
+  --border: #1e3557;
+  --accent: #00c8f0;
+  --accent2: #ff7a35;
+  --green: #00e87a;
+  --yellow: #f5c400;
+  --text: #b8cce0;
+  --textdim: #3a5070;
+  --mono: 'Share Tech Mono', monospace;
+  --sans: 'Rajdhani', sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  min-height: 100vh;
+  user-select: none;
+}
+
+/* ─── HEADER ─── */
+.hdr {
+  background: #080c14;
+  border-bottom: 1px solid var(--border);
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.hdr h1 {
+  font-family: var(--mono);
+  font-size: 1rem;
+  color: var(--accent);
+  letter-spacing: 3px;
+}
+.hdr .tag {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  padding: 1px 7px;
+  border-radius: 2px;
+  opacity: 0.7;
+}
+.hdr .info {
+  font-size: 0.75rem;
+  color: var(--textdim);
+  margin-left: 4px;
+}
+.btn-reset {
+  margin-left: auto;
+  background: #120808;
+  border: 1px solid #3a1010;
+  color: #e05050;
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  padding: 4px 14px;
+  border-radius: 3px;
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: all 0.2s;
+}
+.btn-reset:hover { background: #200808; border-color: #cc3333; }
+
+/* ─── CONTROLS ─── */
+.ctrl-bar {
+  background: #070d16;
+  border-bottom: 1px solid var(--border);
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.ctrl-lbl {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--green);
+  letter-spacing: 2px;
+}
+.bit-grp { display: flex; align-items: flex-end; gap: 10px; }
+.bit-sep { width: 1px; height: 30px; background: var(--border); margin: 0 4px; }
+.bit-wrap { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.bit-wrap label {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--accent2);
+}
+.bit-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 5px;
+  border: 2px solid #222;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 1.15rem;
+  font-weight: bold;
+  transition: all 0.14s;
+  background: #0d0d0d;
+  color: #383838;
+}
+.bit-btn.on {
+  background: #001a0a;
+  color: var(--green);
+  border-color: var(--green);
+  box-shadow: 0 0 10px rgba(0,232,122,0.35);
+}
+.bit-btn:hover { transform: scale(1.07); }
+
+.route-box {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.route-box .rl { font-family: var(--mono); font-size: 0.6rem; color: var(--textdim); }
+.route-val {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--yellow);
+  background: #120f00;
+  border: 1px solid #3a2c00;
+  padding: 4px 12px;
+  border-radius: 3px;
+  min-width: 200px;
+  text-align: center;
+  letter-spacing: 0.5px;
+}
+
+/* ─── MAIN ─── */
+.main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 14px 12px 6px;
+}
+
+/* The SVG circuit diagram */
+#circuit-svg {
+  width: 100%;
+  max-width: 1200px;
+}
+
+/* ─── INPUT CELLS (left of SVG) ─── */
+.side-inputs, .side-outputs {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* ─── COLOR PICKER ─── */
+#cpopup {
+  position: fixed;
+  background: #0c1627;
+  border: 1px solid var(--accent);
+  border-radius: 7px;
+  padding: 10px;
+  z-index: 9999;
+  display: none;
+  box-shadow: 0 6px 30px #000a;
+}
+#cpopup .cpt {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  color: var(--textdim);
+  margin-bottom: 7px;
+  letter-spacing: 1px;
+}
+.cp-row { display: flex; gap: 5px; flex-wrap: wrap; max-width: 140px; }
+.cp-swatch {
+  width: 22px; height: 22px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: transform 0.12s, border-color 0.12s;
+}
+.cp-swatch:hover { transform: scale(1.2); border-color: #fff; }
+
+/* ─── INFO BAR ─── */
+.info-bar {
+  border-top: 1px solid var(--border);
+  padding: 6px 20px;
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 0.72rem;
+  color: var(--textdim);
+}
+.info-bar strong { color: var(--accent); font-family: var(--mono); font-size: 0.65rem; }
+
+/* ─── ANIMATED PACKET ─── */
+.pkt {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 50;
+  transition: opacity 0.3s;
+  box-shadow: 0 0 8px currentColor;
+}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <h1>MUX / DEMUX ENCADEADOS</h1>
+  <span class="tag">32×1×32</span>
+  <span class="info">Sistemas Digitais — Objeto de Aprendizagem</span>
+  <button class="btn-reset" onclick="resetAll()">⟳ RESET</button>
+</div>
+
+<div class="ctrl-bar">
+  <span class="ctrl-lbl">SELEÇÃO</span>
+  <div class="bit-grp">
+    <!-- E, D controlam MUX4x1 / DEMUX1x4 -->
+    <div class="bit-wrap"><label>E</label><button class="bit-btn off" id="bE" onclick="toggleBit('E')">0</button></div>
+    <div class="bit-wrap"><label>D</label><button class="bit-btn off" id="bD" onclick="toggleBit('D')">0</button></div>
+    <div class="bit-sep"></div>
+    <!-- C, B, A controlam MUX8x1 / DEMUX1x8 -->
+    <div class="bit-wrap"><label>C</label><button class="bit-btn off" id="bC" onclick="toggleBit('C')">0</button></div>
+    <div class="bit-wrap"><label>B</label><button class="bit-btn off" id="bB" onclick="toggleBit('B')">0</button></div>
+    <div class="bit-wrap"><label>A</label><button class="bit-btn off" id="bA" onclick="toggleBit('A')">0</button></div>
+  </div>
+  <div class="route-box">
+    <span class="rl">CANAL:</span>
+    <span class="route-val" id="route-val">D0 → MUX1 → MUX5 ═ DEMUX5 → DEMUX1 → O0</span>
+  </div>
+</div>
+
+<div class="main">
+  <svg id="circuit-svg" viewBox="0 0 1200 540" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+        <path d="M1 1L9 5L1 9" fill="none" stroke="context-stroke" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </marker>
+      <!-- Glow filter for active wires -->
+      <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+        <feGaussianBlur stdDeviation="2.5" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+      <filter id="glow-sm" x="-30%" y="-30%" width="160%" height="160%">
+        <feGaussianBlur stdDeviation="1.5" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+    </defs>
+
+    <!-- ══════════════════════════════════════════════
+         BACKGROUND GRID (subtle)
+    ══════════════════════════════════════════════ -->
+    <rect width="1200" height="540" fill="#0b0f1a"/>
+
+    <!-- ══════════════════════════════════════════════
+         LEFT INPUTS: D0-D31  (generated by JS)
+    ══════════════════════════════════════════════ -->
+    <g id="g-inputs"></g>
+
+    <!-- ══════════════════════════════════════════════
+         MUX 8:1 BLOCKS  (4 blocks)
+    ══════════════════════════════════════════════ -->
+    <g id="g-mux8"></g>
+
+    <!-- Wires: MUX8 outputs → MUX5 inputs -->
+    <g id="g-mux8-to-mux5"></g>
+
+    <!-- ══════════════════════════════════════════════
+         MUX 5 (4:1)  center-left
+    ══════════════════════════════════════════════ -->
+    <g id="g-mux5"></g>
+
+    <!-- Channel wire MUX5 → DEMUX5 -->
+    <g id="g-channel"></g>
+
+    <!-- ══════════════════════════════════════════════
+         DEMUX 5 (1:4)  center-right
+    ══════════════════════════════════════════════ -->
+    <g id="g-demux5"></g>
+
+    <!-- Wires: DEMUX5 outputs → DEMUX8 inputs -->
+    <g id="g-demux5-to-demux8"></g>
+
+    <!-- ══════════════════════════════════════════════
+         DEMUX 1:8 BLOCKS (4 blocks)
+    ══════════════════════════════════════════════ -->
+    <g id="g-demux8"></g>
+
+    <!-- ══════════════════════════════════════════════
+         RIGHT OUTPUTS: O0-O31
+    ══════════════════════════════════════════════ -->
+    <g id="g-outputs"></g>
+
+    <!-- Animated packet (overlay) -->
+    <circle id="pkt" r="6" fill="none" opacity="0" filter="url(#glow)"/>
+  </svg>
+</div>
+
+<div class="info-bar">
+  <strong>ENTRADAS:</strong> 32 (D0–D31)
+  &nbsp;|&nbsp;
+  <strong>SAÍDAS:</strong> 32 (O0–O31)
+  &nbsp;|&nbsp;
+  <strong>ENDEREÇO:</strong> 5 bits (E,D,C,B,A)
+  &nbsp;|&nbsp;
+  Clique em qualquer entrada para escolher a cor do dado. O dado percorre o caminho até a saída correspondente.
+</div>
+
+<!-- Color picker popup -->
+<div id="cpopup">
+  <div class="cpt">COR DO DADO</div>
+  <div class="cp-row" id="cp-row"></div>
+</div>
+
+<script>
+// ════════════════════════════════════════
+//  CONSTANTS & LAYOUT
+// ════════════════════════════════════════
+const W = 1200, H = 540;
+const COLORS = [
+  {name:'off',    hex:'#111111', glow:'#333333'},
+  {name:'red',    hex:'#ee3333', glow:'#ff6666'},
+  {name:'green',  hex:'#00cc55', glow:'#44ff88'},
+  {name:'blue',   hex:'#2277ff', glow:'#66aaff'},
+  {name:'yellow', hex:'#ffcc00', glow:'#ffee55'},
+  {name:'orange', hex:'#ff7700', glow:'#ffaa44'},
+  {name:'purple', hex:'#aa33ff', glow:'#cc77ff'},
+  {name:'cyan',   hex:'#00ccdd', glow:'#44eeff'},
+  {name:'pink',   hex:'#ff44aa', glow:'#ff88cc'},
+  {name:'white',  hex:'#cccccc', glow:'#ffffff'},
+];
+
+// State
+const SEL = {E:0,D:0,C:0,B:0,A:0};
+const inputColor = new Array(32).fill(0); // index into COLORS
+
+// Layout parameters
+// Each MUX group of 8 inputs occupies a vertical band
+// Groups stacked: top = MUX1(D0-7), MUX2(D8-15), MUX3(D16-23), MUX4(D24-31)
+const ROW_H = H / 32;        // height per input row  ≈ 17.5
+const GRP_H = ROW_H * 8;     // height per MUX group
+
+// X positions
+const X_IN_LABEL  = 18;
+const X_IN_WIRE_A = 36;   // start of input wire
+const X_IN_WIRE_B = 76;   // end of input wire / data button left
+const X_IN_BTN    = 78;   // center of data button
+const X_IN_WIRE_C = 106;  // wire after button → MUX8
+
+const X_MUX8_L = 108;    // left edge of MUX8x1 block
+const X_MUX8_R = 168;    // right edge
+const X_MUX8_OUT = 168;  // output point
+
+const X_M8_TO_M5_TURN = 350; // where the inter-wire bends
+const X_MUX5_L = 378;
+const X_MUX5_R = 448;
+const X_MUX5_OUT = 448;
+
+const X_CH_MID = 580;   // midpoint of channel wire
+
+const X_DEMUX5_L = 712;
+const X_DEMUX5_R = 782;
+const X_DEMUX5_IN = 712;
+
+const X_D5_TO_D8_TURN = 810;
+const X_DEMUX8_L = 992;
+const X_DEMUX8_R = 1052;
+const X_DEMUX8_IN = 992;
+
+const X_OUT_WIRE_A = 1052;
+const X_OUT_BTN    = 1078;
+const X_OUT_WIRE_B = 1110;
+const X_OUT_LABEL  = 1126;
+
+// Y centers of the 4 MUX groups
+function groupY(g) { return g * GRP_H + GRP_H/2; }
+// Y center of row i (0-31)
+function rowY(i) { return i * ROW_H + ROW_H/2; }
+// Y centers of MUX8 block (centered in its group)
+const MUX8_H = 70;
+function mux8Y(g) { return groupY(g) - MUX8_H/2; }
+
+// MUX5 / DEMUX5 positions
+const MUX5_H = 60;
+const MUX5_Y = H/2 - MUX5_H/2;
+const DEMUX5_H = 60;
+const DEMUX5_Y = H/2 - DEMUX5_H/2;
+
+// DEMUX8 block positions – same as MUX8
+function demux8Y(g) { return groupY(g) - MUX8_H/2; }
+
+// ════════════════════════════════════════
+//  SVG HELPERS
+// ════════════════════════════════════════
+const NS = 'http://www.w3.org/2000/svg';
+function el(tag, attrs, text) {
+  const e = document.createElementNS(NS, tag);
+  for (const [k,v] of Object.entries(attrs||{})) e.setAttribute(k, v);
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+function wire(x1,y1,x2,y2,id,cls) {
+  return el('line',{x1,y1,x2,y2,id,class:cls||'wk',stroke:'#1e3557','stroke-width':'1.5',
+    'stroke-linecap':'round'});
+}
+function path(d,id,cls) {
+  return el('path',{d,id,class:cls||'wk',stroke:'#1e3557','stroke-width':'1.5',fill:'none',
+    'stroke-linecap':'round','stroke-linejoin':'round'});
+}
+function txt(x,y,t,opts={}) {
+  return el('text',{x,y,'font-family':'Share Tech Mono, monospace',
+    'font-size': opts.sz||'9','fill': opts.fill||'#3a5070',
+    'text-anchor': opts.anchor||'middle','dominant-baseline':'central',
+    ...opts.extra}, t);
+}
+function rect(x,y,w,h,attrs={}) {
+  return el('rect',{x,y,width:w,height:h,rx:attrs.rx||3,
+    fill: attrs.fill||'#0d1e33', stroke: attrs.stroke||'#1e4a7a',
+    'stroke-width': attrs.sw||'1', ...attrs.extra});
+}
+
+// ════════════════════════════════════════
+//  BUILD STATIC STRUCTURE
+// ════════════════════════════════════════
+function build() {
+  buildInputs();
+  buildGroupBrackets();
+  buildMux8Blocks();
+  buildMux8ToMux5Wires();
+  buildMux5();
+  buildChannel();
+  buildDemux5();
+  buildDemux5ToDemux8Wires();
+  buildDemux8Blocks();
+  buildOutputGroupBrackets();
+  buildOutputs();
+  buildColorPicker();
+}
+
+// ── INPUTS ──
+function buildInputs() {
+  const g = document.getElementById('g-inputs');
+  for (let i = 0; i < 32; i++) {
+    const y = rowY(i);
+    // port label
+    g.appendChild(txt(X_IN_LABEL, y, `D${i}`, {sz:'8',fill:'#2a4060',anchor:'start'}));
+    // wire segment before button
+    g.appendChild(wire(X_IN_WIRE_A, y, X_IN_WIRE_B, y, `wi-pre-${i}`));
+    // data button (clickable colored circle)
+    const btn = el('circle', {cx: X_IN_BTN + 8, cy: y, r:'7',
+      id:`din-${i}`, fill: COLORS[0].hex, stroke:'#222', 'stroke-width':'1',
+      cursor:'pointer'});
+    btn.addEventListener('click', e => openCP(e, i));
+    g.appendChild(btn);
+    // wire after button → MUX8 block edge
+    g.appendChild(wire(X_IN_BTN+16, y, X_IN_WIRE_C, y, `wi-post-${i}`));
+  }
+}
+
+// ── MUX 8:1 BLOCKS ──
+function buildMux8Blocks() {
+  const g = document.getElementById('g-mux8');
+  for (let grp = 0; grp < 4; grp++) {
+    const gy = mux8Y(grp);
+    const gcy = groupY(grp);
+    // Block rect
+    const r = rect(X_MUX8_L, gy, X_MUX8_R-X_MUX8_L, MUX8_H, {rx:4});
+    r.id = `mux8-rect-${grp}`;
+    g.appendChild(r);
+    // Block label
+    g.appendChild(txt((X_MUX8_L+X_MUX8_R)/2, gy+18, `MUX ${grp+1}`,
+      {sz:'9',fill:'#2a7ab0',anchor:'middle'}));
+    g.appendChild(txt((X_MUX8_L+X_MUX8_R)/2, gy+31, '8 : 1',
+      {sz:'8',fill:'#1a4060',anchor:'middle'}));
+    // Output orb
+    const orb = el('circle', {cx: X_MUX8_R-4, cy: gcy, r:'4',
+      id:`mux8-orb-${grp}`, fill:'#0a0a0a', stroke:'#1a3050','stroke-width':'1'});
+    g.appendChild(orb);
+    // Output wire stub
+    g.appendChild(wire(X_MUX8_R, gcy, X_MUX8_R+6, gcy, `mux8-outwire-${grp}`));
+  }
+}
+
+// ── WIRES: MUX8 outputs → MUX5 inputs ──
+function buildMux8ToMux5Wires() {
+  const g = document.getElementById('g-mux8-to-mux5');
+  // MUX5 has 4 inputs spaced vertically
+  const inYs = [0,1,2,3].map(i => MUX5_Y + 12 + i * (MUX5_H-24)/3);
+  for (let grp = 0; grp < 4; grp++) {
+    const fromY = groupY(grp);
+    const toY   = inYs[grp];
+    // L-shaped wire: horizontal → corner → horizontal
+    const d = `M ${X_MUX8_R+6} ${fromY} L ${X_M8_TO_M5_TURN} ${fromY} L ${X_M8_TO_M5_TURN} ${toY} L ${X_MUX5_L} ${toY}`;
+    g.appendChild(path(d, `wire-m8-m5-${grp}`));
+    // input label at MUX5
+    g.appendChild(txt(X_MUX5_L-3, toY, `D${grp}`, {sz:'7',fill:'#1a3550',anchor:'end'}));
+  }
+}
+
+// ── MUX5 (4:1) ──
+function buildMux5() {
+  const g = document.getElementById('g-mux5');
+  const cy = H/2;
+  const r = rect(X_MUX5_L, MUX5_Y, X_MUX5_R-X_MUX5_L, MUX5_H, {rx:5,
+    stroke:'#1e5a8a', fill:'#050e1f'});
+  r.id = 'mux5-rect';
+  g.appendChild(r);
+  g.appendChild(txt((X_MUX5_L+X_MUX5_R)/2, MUX5_Y+18, 'MUX 5',
+    {sz:'10',fill:'#2a7ab0',anchor:'middle'}));
+  g.appendChild(txt((X_MUX5_L+X_MUX5_R)/2, MUX5_Y+31, '4 : 1',
+    {sz:'8',fill:'#1a4060',anchor:'middle'}));
+  // output orb
+  const orb = el('circle', {cx: X_MUX5_R-4, cy, r:'5',
+    id:'mux5-orb', fill:'#080808', stroke:'#1a3050','stroke-width':'1'});
+  g.appendChild(orb);
+  g.appendChild(wire(X_MUX5_R, cy, X_MUX5_R+8, cy, 'mux5-outwire'));
+}
+
+// ── CHANNEL WIRE ──
+function buildChannel() {
+  const g = document.getElementById('g-channel');
+  const cy = H/2;
+  // The long multiplexed wire with diagonal hash marks to indicate multiplexed
+  g.appendChild(wire(X_MUX5_R+8, cy, X_DEMUX5_L-8, cy, 'channel-wire'));
+  // hash marks (schematic convention for multiplexed line)
+  for (let x = X_CH_MID-20; x <= X_CH_MID+20; x+=10) {
+    const hm = el('line',{x1:x-5,y1:cy-7,x2:x+5,y2:cy+7,
+      stroke:'#1e3557','stroke-width':'1.2','stroke-linecap':'round'});
+    g.appendChild(hm);
+  }
+  g.appendChild(txt(X_CH_MID, cy-14, 'CANAL MULTIPLEXADO', {sz:'7.5',fill:'#1e3557'}));
+  // channel orb (mid point)
+  const orb = el('circle',{cx:X_CH_MID, cy, r:'5',
+    id:'chan-orb', fill:'#080808', stroke:'#1a3050','stroke-width':'1'});
+  g.appendChild(orb);
+}
+
+// ── DEMUX5 (1:4) ──
+function buildDemux5() {
+  const g = document.getElementById('g-demux5');
+  const cy = H/2;
+  const r = rect(X_DEMUX5_L, DEMUX5_Y, X_DEMUX5_R-X_DEMUX5_L, DEMUX5_H, {rx:5,
+    stroke:'#1e5a8a', fill:'#050e1f'});
+  r.id = 'demux5-rect';
+  g.appendChild(r);
+  g.appendChild(txt((X_DEMUX5_L+X_DEMUX5_R)/2, DEMUX5_Y+18, 'DEMUX 5',
+    {sz:'10',fill:'#2a7ab0',anchor:'middle'}));
+  g.appendChild(txt((X_DEMUX5_L+X_DEMUX5_R)/2, DEMUX5_Y+31, '1 : 4',
+    {sz:'8',fill:'#1a4060',anchor:'middle'}));
+  // input wire stub
+  g.appendChild(wire(X_DEMUX5_IN-8, cy, X_DEMUX5_IN, cy, 'demux5-inwire'));
+  // input orb
+  const orb = el('circle',{cx:X_DEMUX5_IN+4, cy, r:'5',
+    id:'demux5-orb', fill:'#080808',stroke:'#1a3050','stroke-width':'1'});
+  g.appendChild(orb);
+}
+
+// ── WIRES: DEMUX5 outputs → DEMUX8 inputs ──
+function buildDemux5ToDemux8Wires() {
+  const g = document.getElementById('g-demux5-to-demux8');
+  const outYs = [0,1,2,3].map(i => DEMUX5_Y + 12 + i*(DEMUX5_H-24)/3);
+  for (let grp = 0; grp < 4; grp++) {
+    const fromY = outYs[grp];
+    const toY   = groupY(grp);
+    const d = `M ${X_DEMUX5_R} ${fromY} L ${X_D5_TO_D8_TURN} ${fromY} L ${X_D5_TO_D8_TURN} ${toY} L ${X_DEMUX8_IN-6} ${toY}`;
+    g.appendChild(path(d, `wire-d5-d8-${grp}`));
+    g.appendChild(txt(X_DEMUX5_R+4, fromY, `O${grp}`, {sz:'7',fill:'#1a3550',anchor:'start'}));
+  }
+}
+
+// ── DEMUX 1:8 BLOCKS ──
+function buildDemux8Blocks() {
+  const g = document.getElementById('g-demux8');
+  for (let grp = 0; grp < 4; grp++) {
+    const gy = demux8Y(grp);
+    const gcy = groupY(grp);
+    const r = rect(X_DEMUX8_L, gy, X_DEMUX8_R-X_DEMUX8_L, MUX8_H, {rx:4});
+    r.id = `demux8-rect-${grp}`;
+    g.appendChild(r);
+    g.appendChild(txt((X_DEMUX8_L+X_DEMUX8_R)/2, gy+18, `DEMUX ${grp+1}`,
+      {sz:'9',fill:'#2a7ab0',anchor:'middle'}));
+    g.appendChild(txt((X_DEMUX8_L+X_DEMUX8_R)/2, gy+31, '1 : 8',
+      {sz:'8',fill:'#1a4060',anchor:'middle'}));
+    // input orb
+    const orb = el('circle',{cx: X_DEMUX8_L+4, cy: gcy, r:'4',
+      id:`demux8-orb-${grp}`, fill:'#0a0a0a', stroke:'#1a3050','stroke-width':'1'});
+    g.appendChild(orb);
+    g.appendChild(wire(X_DEMUX8_L-6, gcy, X_DEMUX8_L, gcy, `demux8-inwire-${grp}`));
+  }
+}
+
+// ── OUTPUTS ──
+function buildOutputs() {
+  const g = document.getElementById('g-outputs');
+  for (let i = 0; i < 32; i++) {
+    const y = rowY(i);
+    g.appendChild(wire(X_DEMUX8_R, y, X_OUT_WIRE_A, y, `wo-pre-${i}`));
+    // output display circle
+    const out = el('circle',{cx: X_OUT_BTN+8, cy: y, r:'7',
+      id:`dout-${i}`, fill:'#080808', stroke:'#111','stroke-width':'1'});
+    g.appendChild(out);
+    g.appendChild(wire(X_OUT_BTN+16, y, X_OUT_WIRE_B, y, `wo-post-${i}`));
+    g.appendChild(txt(X_OUT_LABEL, y, `O${i}`, {sz:'8',fill:'#2a4060',anchor:'start'}));
+  }
+}
+
+// ── INPUT GROUP BRACKETS (left side, between labels and wires) ──
+function buildGroupBrackets() {
+  const g = document.getElementById('g-inputs');
+  const GRP_NAMES = ['MUX 1','MUX 2','MUX 3','MUX 4'];
+  const bracketX = 4; // X of bracket vertical bar
+  const tickLen  = 5; // horizontal tick length
+  const PAD = 1;      // padding from first/last row center
+
+  for (let grp = 0; grp < 4; grp++) {
+    const firstRow = grp * 8;
+    const lastRow  = grp * 8 + 7;
+    const yTop    = rowY(firstRow) - PAD;
+    const yBot    = rowY(lastRow)  + PAD;
+    const yCtr    = (yTop + yBot) / 2;
+
+    // vertical bar
+    g.appendChild(el('line',{
+      x1: bracketX, y1: yTop,
+      x2: bracketX, y2: yBot,
+      stroke:'#1a3a60','stroke-width':'1','stroke-linecap':'round'
+    }));
+    // top tick
+    g.appendChild(el('line',{
+      x1: bracketX, y1: yTop,
+      x2: bracketX + tickLen, y2: yTop,
+      stroke:'#1a3a60','stroke-width':'1','stroke-linecap':'round'
+    }));
+    // bottom tick
+    g.appendChild(el('line',{
+      x1: bracketX, y1: yBot,
+      x2: bracketX + tickLen, y2: yBot,
+      stroke:'#1a3a60','stroke-width':'1','stroke-linecap':'round'
+    }));
+    // label rotated: use a small rotated text group
+    const t = el('text',{
+      x: bracketX - 3, y: yCtr,
+      'font-family':'Share Tech Mono, monospace',
+      'font-size':'7.5',
+      fill:'#1e4a7a',
+      'text-anchor':'middle',
+      'dominant-baseline':'central',
+      transform:`rotate(-90, ${bracketX - 3}, ${yCtr})`
+    }, GRP_NAMES[grp]);
+    g.appendChild(t);
+  }
+}
+
+// ── OUTPUT GROUP BRACKETS (right side, after output labels) ──
+function buildOutputGroupBrackets() {
+  const g = document.getElementById('g-outputs');
+  const GRP_NAMES = ['DEMUX 1','DEMUX 2','DEMUX 3','DEMUX 4'];
+  const bracketX = X_OUT_LABEL + 28;
+  const tickLen  = 5;
+  const PAD = 1;
+
+  for (let grp = 0; grp < 4; grp++) {
+    const firstRow = grp * 8;
+    const lastRow  = grp * 8 + 7;
+    const yTop    = rowY(firstRow) - PAD;
+    const yBot    = rowY(lastRow)  + PAD;
+    const yCtr    = (yTop + yBot) / 2;
+
+    g.appendChild(el('line',{
+      x1: bracketX, y1: yTop,
+      x2: bracketX, y2: yBot,
+      stroke:'#1a3a60','stroke-width':'1','stroke-linecap':'round'
+    }));
+    g.appendChild(el('line',{
+      x1: bracketX - tickLen, y1: yTop,
+      x2: bracketX,           y2: yTop,
+      stroke:'#1a3a60','stroke-width':'1','stroke-linecap':'round'
+    }));
+    g.appendChild(el('line',{
+      x1: bracketX - tickLen, y1: yBot,
+      x2: bracketX,           y2: yBot,
+      stroke:'#1a3a60','stroke-width':'1','stroke-linecap':'round'
+    }));
+    const t = el('text',{
+      x: bracketX + 3, y: yCtr,
+      'font-family':'Share Tech Mono, monospace',
+      'font-size':'7.5',
+      fill:'#1e4a7a',
+      'text-anchor':'middle',
+      'dominant-baseline':'central',
+      transform:`rotate(90, ${bracketX + 3}, ${yCtr})`
+    }, GRP_NAMES[grp]);
+    g.appendChild(t);
+  }
+}
+
+// ════════════════════════════════════════
+//  COLOR PICKER
+// ════════════════════════════════════════
+let cpTarget = null;
+function buildColorPicker() {
+  const row = document.getElementById('cp-row');
+  COLORS.forEach((c,i) => {
+    const s = document.createElement('div');
+    s.className = 'cp-swatch';
+    s.style.background = c.hex;
+    s.title = c.name;
+    s.onclick = () => pickColor(i);
+    row.appendChild(s);
+  });
+}
+function openCP(e, idx) {
+  e.stopPropagation();
+  cpTarget = idx;
+  const p = document.getElementById('cpopup');
+  p.style.display = 'block';
+  const margin = 10;
+  let left = e.clientX + margin;
+  let top  = e.clientY + margin;
+  if (left + 160 > window.innerWidth)  left = e.clientX - 160 - margin;
+  if (top  + 130 > window.innerHeight) top  = e.clientY - 130 - margin;
+  p.style.left = left + 'px';
+  p.style.top  = top  + 'px';
+}
+function pickColor(ci) {
+  if (cpTarget === null) return;
+  inputColor[cpTarget] = ci;
+  // update input button
+  const btn = document.getElementById(`din-${cpTarget}`);
+  if (btn) {
+    btn.setAttribute('fill', COLORS[ci].hex);
+    btn.setAttribute('stroke', ci ? COLORS[ci].glow : '#222');
+  }
+  document.getElementById('cpopup').style.display = 'none';
+  cpTarget = null;
+  updateRoute();
+}
+document.addEventListener('click', e => {
+  const p = document.getElementById('cpopup');
+  if (!e.target.closest('#cpopup') && !e.target.closest('circle[id^="din"]')) {
+    p.style.display = 'none';
+  }
+});
+
+// ════════════════════════════════════════
+//  BIT TOGGLE
+// ════════════════════════════════════════
+function toggleBit(b) {
+  SEL[b] = SEL[b] ? 0 : 1;
+  const btn = document.getElementById('b'+b);
+  btn.textContent = SEL[b];
+  btn.className = 'bit-btn ' + (SEL[b] ? 'on' : 'off');
+  updateRoute();
+}
+
+// ════════════════════════════════════════
+//  ROUTE CALCULATION
+// ════════════════════════════════════════
+function getRoute() {
+  const muxGrp  = (SEL.E << 1) | SEL.D;        // 0-3: which MUX8/DEMUX8
+  const chanIdx = (SEL.C << 2) | (SEL.B << 1) | SEL.A; // 0-7: input within group
+  const inputIdx  = muxGrp * 8 + chanIdx;
+  return { muxGrp, chanIdx, inputIdx, outputIdx: inputIdx };
+}
+
+// ════════════════════════════════════════
+//  UPDATE VISUALS
+// ════════════════════════════════════════
+const IDLE  = '#1e3557';
+const IDLE_W = '1.5';
+
+function setWire(id, active, color) {
+  const e = document.getElementById(id);
+  if (!e) return;
+  if (active) {
+    e.setAttribute('stroke', color || '#00c8f0');
+    e.setAttribute('stroke-width', '2.2');
+    e.setAttribute('filter', 'url(#glow-sm)');
+  } else {
+    e.setAttribute('stroke', IDLE);
+    e.setAttribute('stroke-width', IDLE_W);
+    e.removeAttribute('filter');
+  }
+}
+function setOrb(id, active, hexColor, glowColor) {
+  const e = document.getElementById(id);
+  if (!e) return;
+  e.setAttribute('fill', active ? hexColor : '#080808');
+  e.setAttribute('stroke', active ? glowColor : '#1a3050');
+  if (active) e.setAttribute('filter', 'url(#glow)');
+  else        e.removeAttribute('filter');
+}
+function setBlock(rectId, active) {
+  const e = document.getElementById(rectId);
+  if (!e) return;
+  if (active) {
+    e.setAttribute('stroke', '#00c8f0');
+    e.setAttribute('stroke-width', '1.8');
+    e.setAttribute('fill', '#021428');
+  } else {
+    e.setAttribute('stroke', '#1e4a7a');
+    e.setAttribute('stroke-width', '1');
+    e.setAttribute('fill', '#0d1e33');
+  }
+}
+function setMuxCenterBlock(rectId, active) {
+  const e = document.getElementById(rectId);
+  if (!e) return;
+  if (active) {
+    e.setAttribute('stroke', '#00c8f0');
+    e.setAttribute('stroke-width', '2');
+    e.setAttribute('fill', '#021428');
+  } else {
+    e.setAttribute('stroke', '#1e5a8a');
+    e.setAttribute('stroke-width', '1');
+    e.setAttribute('fill', '#050e1f');
+  }
+}
+
+let animFrames = [];
+function clearAnims() {
+  animFrames.forEach(f => cancelAnimationFrame(f));
+  animFrames = [];
+  const pkt = document.getElementById('pkt');
+  pkt.setAttribute('opacity','0');
+}
+
+function updateRoute() {
+  clearAnims();
+  const {muxGrp, chanIdx, inputIdx, outputIdx} = getRoute();
+  const ci    = inputColor[inputIdx];
+  const color = COLORS[ci];
+  const active = ci > 0;
+
+  const C = active ? color.hex  : '#00c8f0';
+  const G = active ? color.glow : '#00c8f0';
+
+  // ── Clear ALL wires & orbs ──
+  for (let i = 0; i < 32; i++) {
+    setWire(`wi-pre-${i}`, false);
+    setWire(`wi-post-${i}`, false);
+    setWire(`wo-pre-${i}`, false);
+    setWire(`wo-post-${i}`, false);
+    const dout = document.getElementById(`dout-${i}`);
+    if (dout) { dout.setAttribute('fill','#080808'); dout.setAttribute('stroke','#111');
+      dout.removeAttribute('filter'); }
+  }
+  for (let g = 0; g < 4; g++) {
+    setBlock(`mux8-rect-${g}`, false);
+    setOrb(`mux8-orb-${g}`, false);
+    setWire(`mux8-outwire-${g}`, false);
+    setWire(`wire-m8-m5-${g}`, false);
+    setWire(`wire-d5-d8-${g}`, false);
+    setWire(`demux8-inwire-${g}`, false);
+    setOrb(`demux8-orb-${g}`, false);
+    setBlock(`demux8-rect-${g}`, false);
+  }
+  setOrb('mux5-orb', false);
+  setWire('mux5-outwire', false);
+  setMuxCenterBlock('mux5-rect', false);
+  setWire('channel-wire', false);
+  setOrb('chan-orb', false);
+  setMuxCenterBlock('demux5-rect', false);
+  setOrb('demux5-orb', false);
+  setWire('demux5-inwire', false);
+
+  // ── Activate selected route ──
+  setWire(`wi-pre-${inputIdx}`,  true, C);
+  setWire(`wi-post-${inputIdx}`, true, C);
+  setBlock(`mux8-rect-${muxGrp}`, true);
+  setOrb(`mux8-orb-${muxGrp}`, active, C, G);
+  setWire(`mux8-outwire-${muxGrp}`, true, C);
+  setWire(`wire-m8-m5-${muxGrp}`, true, C);
+  setMuxCenterBlock('mux5-rect', true);
+  setOrb('mux5-orb', active, C, G);
+  setWire('mux5-outwire', true, C);
+  setWire('channel-wire', true, C);
+  setOrb('chan-orb', active, C, G);
+  setMuxCenterBlock('demux5-rect', true);
+  setOrb('demux5-orb', active, C, G);
+  setWire('demux5-inwire', true, C);
+  setWire(`wire-d5-d8-${muxGrp}`, true, C);
+  setWire(`demux8-inwire-${muxGrp}`, true, C);
+  setOrb(`demux8-orb-${muxGrp}`, active, C, G);
+  setBlock(`demux8-rect-${muxGrp}`, true);
+  setWire(`wo-pre-${outputIdx}`, true, C);
+  setWire(`wo-post-${outputIdx}`, true, C);
+
+  // output display
+  const dout = document.getElementById(`dout-${outputIdx}`);
+  if (dout) {
+    dout.setAttribute('fill', active ? color.hex : '#0a1e2e');
+    dout.setAttribute('stroke', active ? color.glow : '#0a2040');
+    if (active) dout.setAttribute('filter','url(#glow)');
+    else dout.removeAttribute('filter');
+  }
+
+  // ── Route text ──
+  const addr = ((SEL.E<<4)|(SEL.D<<3)|(SEL.C<<2)|(SEL.B<<1)|SEL.A).toString(2).padStart(5,'0');
+  document.getElementById('route-val').textContent =
+    `D${inputIdx} → MUX${muxGrp+1} → MUX5 ═ DEMUX5 → DEMUX${muxGrp+1} → O${outputIdx}  [${addr}]`;
+
+  // ── Animate packet ──
+  if (active) animatePacket(muxGrp, chanIdx, inputIdx, C, G);
+}
+
+// ════════════════════════════════════════
+//  PACKET ANIMATION
+// ════════════════════════════════════════
+function animatePacket(muxGrp, chanIdx, inputIdx, hexColor, glowColor) {
+  const pkt = document.getElementById('pkt');
+  pkt.setAttribute('fill', hexColor);
+  pkt.setAttribute('stroke', glowColor);
+  pkt.setAttribute('stroke-width','2');
+  pkt.setAttribute('opacity','1');
+  pkt.setAttribute('filter','url(#glow)');
+
+  // Build the path waypoints
+  const inY   = rowY(inputIdx);
+  const grpCY = groupY(muxGrp);
+  const mux5CY = H/2;
+  const outY  = rowY(inputIdx);
+
+  // MUX5 input Y
+  const mux5InYs = [0,1,2,3].map(i => MUX5_Y + 12 + i*(MUX5_H-24)/3);
+  const mux5InY  = mux5InYs[muxGrp];
+
+  // DEMUX5 output Y for this group (mirrors MUX5 input spacing)
+  const demux5OutYs = [0,1,2,3].map(i => DEMUX5_Y + 12 + i*(DEMUX5_H-24)/3);
+  const demux5OutY  = demux5OutYs[muxGrp];
+
+  const pts = [
+    // Input side
+    [X_IN_WIRE_A, inY],
+    [X_IN_BTN+8,  inY],
+    [X_IN_WIRE_C, inY],
+    // traverse MUX8
+    [(X_MUX8_L+X_MUX8_R)/2, inY],
+    [(X_MUX8_L+X_MUX8_R)/2, grpCY],
+    [X_MUX8_R+6, grpCY],
+    // L-bend to MUX5 input port
+    [X_M8_TO_M5_TURN, grpCY],
+    [X_M8_TO_M5_TURN, mux5InY],
+    [X_MUX5_L, mux5InY],
+    // traverse MUX5
+    [(X_MUX5_L+X_MUX5_R)/2, mux5InY],
+    [(X_MUX5_L+X_MUX5_R)/2, mux5CY],
+    [X_MUX5_R+8, mux5CY],
+    // Channel
+    [X_CH_MID, mux5CY],
+    [X_DEMUX5_IN-8, mux5CY],
+    // traverse DEMUX5 (input center -> output port)
+    [(X_DEMUX5_L+X_DEMUX5_R)/2, mux5CY],
+    [(X_DEMUX5_L+X_DEMUX5_R)/2, demux5OutY],
+    [X_DEMUX5_R, demux5OutY],
+    // L-bend: horizontal to turn col, vertical to group center
+    [X_D5_TO_D8_TURN, demux5OutY],
+    [X_D5_TO_D8_TURN, grpCY],
+    // horizontal to DEMUX8 input
+    [X_DEMUX8_L-6, grpCY],
+    // traverse DEMUX8 (input -> fan out to row)
+    [(X_DEMUX8_L+X_DEMUX8_R)/2, grpCY],
+    [(X_DEMUX8_L+X_DEMUX8_R)/2, outY],
+    [X_DEMUX8_R, outY],
+    // output wire
+    [X_OUT_WIRE_A+8, outY],
+    [X_OUT_BTN+8, outY],
+    [X_OUT_WIRE_B, outY],
+  ];
+
+  const TOTAL_DURATION = 2000; // ms for full trip
+  const segLen = [];
+  let totalLen = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const dx = pts[i][0]-pts[i-1][0];
+    const dy = pts[i][1]-pts[i-1][1];
+    const l  = Math.sqrt(dx*dx+dy*dy);
+    segLen.push(l);
+    totalLen += l;
+  }
+
+  let start = null;
+  function frame(ts) {
+    if (!start) start = ts;
+    const elapsed = ts - start;
+    const progress = Math.min(elapsed / TOTAL_DURATION, 1);
+    const traveled = progress * totalLen;
+
+    let acc = 0;
+    let cx = pts[0][0], cy = pts[0][1];
+    for (let i = 0; i < segLen.length; i++) {
+      if (acc + segLen[i] >= traveled) {
+        const t = (traveled - acc) / segLen[i];
+        cx = pts[i][0] + (pts[i+1][0]-pts[i][0])*t;
+        cy = pts[i][1] + (pts[i+1][1]-pts[i][1])*t;
+        break;
+      }
+      acc += segLen[i];
+    }
+
+    pkt.setAttribute('cx', cx.toFixed(1));
+    pkt.setAttribute('cy', cy.toFixed(1));
+
+    if (progress < 1) {
+      const af = requestAnimationFrame(frame);
+      animFrames.push(af);
+    } else {
+      // pulse at destination then fade
+      setTimeout(() => {
+        pkt.setAttribute('r','9');
+        setTimeout(() => {
+          pkt.setAttribute('r','6');
+          setTimeout(() => pkt.setAttribute('opacity','0'), 400);
+        }, 200);
+      }, 100);
+    }
+  }
+  const af = requestAnimationFrame(frame);
+  animFrames.push(af);
+}
+
+// ════════════════════════════════════════
+//  RESET
+// ════════════════════════════════════════
+function resetAll() {
+  inputColor.fill(0);
+  for (let i = 0; i < 32; i++) {
+    const b = document.getElementById(`din-${i}`);
+    if (b) { b.setAttribute('fill', COLORS[0].hex); b.setAttribute('stroke','#222'); }
+  }
+  updateRoute();
+}
+
+// ════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════
+build();
+updateRoute();
+</script>
+</body>
+</html>
